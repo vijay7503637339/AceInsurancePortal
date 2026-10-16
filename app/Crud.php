@@ -24,6 +24,7 @@ final class Crud {
   }
   $table=$e['table'];
   if($id!==null) {
+   if(!self::find($key,$id)) throw new \InvalidArgumentException('Record not found. Refresh the list and try again.');
    $sets=[]; foreach(array_keys($data) as $f)$sets[]='`'.$f.'`=:'.$f; $data['id']=$id;
    $q=\db()->prepare('UPDATE `'.$table.'` SET '.implode(',',$sets).' WHERE id=:id'); $q->execute($data);
    \audit('update',$table,$id,'Updated '.$e['label'].' record'); return $id;
