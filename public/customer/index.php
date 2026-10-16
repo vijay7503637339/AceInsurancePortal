@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require dirname(__DIR__,2).'/app/bootstrap.php';
 use AcePortal\Auth;
+use AcePortal\CertificatePdf;
 
 $u = Auth::requireRoles(['customer']);
 $insuredId = (int)($u['insured_id'] ?? 0);
@@ -47,6 +48,36 @@ if (!$insured) {
 $q = db()->prepare('SELECT * FROM policies WHERE insured_id = :id ORDER BY effective_date DESC, id DESC');
 $q->execute(['id' => $insuredId]);
 $policies = $q->fetchAll();
+
+// Generated certificates stay private and are accessible only to the customer session
+// that generated them. Never accept arbitrary filesystem paths from request parameters.
+if (isset($_GET['file'])) {
+    $requestedFile = is_string($_GET['file']) ? $_GET['file'] : '';
+    $fileId = preg_match('/^[a-f0-9]{32}$/', $requestedFile) ? $requestedFile : '';
+    $fileRecord = $fileId !== '' ? ($_SESSION['certificate_files'][$fileId] ?? null) : null;
+    if (!is_array($fileRecord) || (int)($fileRecord['insured_id'] ?? 0) !== $insuredId) {
+        http_response_code(404);
+        exit('Certificate not found. Generate the preview again from your account.');
+    }
+    $policyCheck = db()->prepare('SELECT policy_number FROM policies WHERE id = :id AND insured_id = :insured_id LIMIT 1');
+    $policyCheck->execute(['id' => (int)$fileRecord['policy_id'], 'insured_id' => $insuredId]);
+    $filePolicy = $policyCheck->fetch();
+    $privatePath = APP_ROOT . '/storage/private/' . $fileId . '.pdf';
+    if (!$filePolicy || !is_file($privatePath) || !is_readable($privatePath)) {
+        http_response_code(404);
+        exit('Certificate file not found. Generate the preview again.');
+    }
+    $safePolicy = preg_replace('/[^A-Za-z0-9_-]+/', '-', (string)$filePolicy['policy_number']) ?: 'policy';
+    $filename = 'certificate-' . trim($safePolicy, '-') . '.pdf';
+    $download = (string)($_GET['download'] ?? '') === '1';
+    header('Content-Type: application/pdf');
+    header('X-Content-Type-Options: nosniff');
+    header('Content-Length: ' . (string)filesize($privatePath));
+    header('Content-Disposition: ' . ($download ? 'attachment' : 'inline') . '; filename="' . $filename . '"');
+    readfile($privatePath);
+    exit;
+}
+
 
 $tab = (string)($_GET['tab'] ?? 'policies');
 if (!in_array($tab, ['policies', 'certificate', 'cab-card'], true)) $tab = 'policies';
@@ -109,6 +140,136 @@ if ($selectedPolicy) {
     if (!empty($selectedPolicy['coverage_data'])) {
         $decoded = json_decode((string)$selectedPolicy['coverage_data'], true);
         if (is_array($decoded)) $coverages = coveragePairs($decoded);
+    }
+}
+
+
+
+$certificateErrors = [];
+$certificateForm = [
+    'broker_emails' => '',
+    'cc_emails' => '',
+    'broker_name' => trim((string)($selectedPolicy['broker_name'] ?? '')),
+    'broker_address' => '',
+    'certificate_holder_name' => '',
+    'certificate_holder_address' => '',
+    'vehicle_ids' => array_map(static fn(array $v): string => (string)$v['id'], $vehicles),
+];
+$currentPolicyId = $selectedPolicy ? (int)$selectedPolicy['id'] : 0;
+if ($currentPolicyId > 0 && isset($_SESSION['certificate_form'][$currentPolicyId]) && is_array($_SESSION['certificate_form'][$currentPolicyId])) {
+    $certificateForm = array_merge($certificateForm, $_SESSION['certificate_form'][$currentPolicyId]);
+}
+$generatedId = null;
+$requestedCertificateId = is_string($_GET['certificate_file'] ?? null) ? (string)$_GET['certificate_file'] : '';
+if ($currentPolicyId > 0 && preg_match('/^[a-f0-9]{32}$/', $requestedCertificateId)) {
+    $record = $_SESSION['certificate_files'][$requestedCertificateId] ?? null;
+    if (is_array($record) && (int)($record['insured_id'] ?? 0) === $insuredId && (int)($record['policy_id'] ?? 0) === $currentPolicyId && is_file(APP_ROOT . '/storage/private/' . $requestedCertificateId . '.pdf')) {
+        $generatedId = $requestedCertificateId;
+    }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['certificate_action'])) {
+    verifyCsrf();
+    try {
+        if (!$selectedPolicy || $currentPolicyId < 1) {
+            throw new \RuntimeException('Select one of your policies before generating a certificate.');
+        }
+        $action = (string)($_POST['certificate_action'] ?? 'preview');
+        if (!in_array($action, ['preview', 'send'], true)) throw new \RuntimeException('Invalid certificate action.');
+        $postedPolicyId = filter_var($_POST['policy_id'] ?? null, FILTER_VALIDATE_INT);
+        if (!$postedPolicyId || (int)$postedPolicyId !== $currentPolicyId) {
+            throw new \RuntimeException('The selected policy changed. Refresh the page and try again.');
+        }
+
+        $certificateForm['broker_emails'] = trim(substr((string)($_POST['broker_emails'] ?? ''), 0, 1200));
+        $certificateForm['cc_emails'] = trim(substr((string)($_POST['cc_emails'] ?? ''), 0, 1200));
+        $certificateForm['broker_name'] = trim(substr((string)($_POST['broker_name'] ?? ''), 0, 190));
+        $certificateForm['broker_address'] = trim(substr((string)($_POST['broker_address'] ?? ''), 0, 700));
+        $certificateForm['certificate_holder_name'] = trim(substr((string)($_POST['certificate_holder_name'] ?? ''), 0, 190));
+        $certificateForm['certificate_holder_address'] = trim(substr((string)($_POST['certificate_holder_address'] ?? ''), 0, 700));
+        $rawVehicleIds = $_POST['vehicle_ids'] ?? [];
+        if (!is_array($rawVehicleIds)) $rawVehicleIds = [];
+        $allowedVehicleIds = array_map(static fn(array $v): int => (int)$v['id'], $vehicles);
+        $selectedVehicleIds = [];
+        foreach (array_slice($rawVehicleIds, 0, 100) as $rawId) {
+            $vehicleId = filter_var($rawId, FILTER_VALIDATE_INT);
+            if (!$vehicleId || !in_array((int)$vehicleId, $allowedVehicleIds, true)) {
+                throw new \RuntimeException('One of the selected vehicles is not available under this policy.');
+            }
+            $selectedVehicleIds[] = (int)$vehicleId;
+        }
+        $selectedVehicleIds = array_values(array_unique($selectedVehicleIds));
+        if (!$selectedVehicleIds) $selectedVehicleIds = $allowedVehicleIds;
+        $certificateForm['vehicle_ids'] = array_map('strval', $selectedVehicleIds);
+        $_SESSION['certificate_form'][$currentPolicyId] = $certificateForm;
+
+        if ($certificateForm['certificate_holder_name'] === '' || $certificateForm['certificate_holder_address'] === '') {
+            throw new \RuntimeException('Enter the certificate holder name and address.');
+        }
+
+        $toEmails = [];
+        $ccEmails = [];
+        if ($action === 'send') {
+            $toEmails = certificateEmails($certificateForm['broker_emails']);
+            $ccEmails = certificateEmails($certificateForm['cc_emails']);
+            if (!$toEmails) throw new \RuntimeException('Enter at least one broker email address.');
+            if ($certificateForm['broker_name'] === '' || $certificateForm['broker_address'] === '') {
+                throw new \RuntimeException('Enter the broker name and broker address before sending.');
+            }
+        }
+
+        $selectedVehicles = array_values(array_filter(
+            $vehicles,
+            static fn(array $v): bool => in_array((int)$v['id'], $selectedVehicleIds, true)
+        ));
+        $fileId = bin2hex(random_bytes(16));
+        $storageDirectory = APP_ROOT . '/storage/private';
+        if (!is_dir($storageDirectory) && !mkdir($storageDirectory, 0750, true) && !is_dir($storageDirectory)) {
+            throw new \RuntimeException('Could not create private certificate storage. Check folder permissions.');
+        }
+        $outputPath = $storageDirectory . '/' . $fileId . '.pdf';
+        CertificatePdf::generate(
+            $selectedPolicy,
+            $insured,
+            $selectedVehicles,
+            $certificateForm,
+            configFile('mail'),
+            $outputPath
+        );
+        $_SESSION['certificate_files'][$fileId] = [
+            'insured_id' => $insuredId,
+            'policy_id' => $currentPolicyId,
+            'created_at' => time(),
+        ];
+        if (count($_SESSION['certificate_files']) > 12) {
+            $_SESSION['certificate_files'] = array_slice($_SESSION['certificate_files'], -12, null, true);
+        }
+        $generatedId = $fileId;
+
+        if ($action === 'send') {
+            $mailSent = sendCertificateMail(
+                $toEmails,
+                $ccEmails,
+                (string)$selectedPolicy['policy_number'],
+                (string)$insured['legal_name'],
+                $certificateForm['certificate_holder_name'],
+                $outputPath
+            );
+            if (!$mailSent) {
+                throw new \RuntimeException('The PDF was generated, but the hosting mail service could not send it. Check config/mail.php and cPanel email delivery.');
+            }
+            audit('certificate_email_sent', 'policy', $currentPolicyId, 'Customer emailed certificate to broker for policy ' . (string)$selectedPolicy['policy_number']);
+            flash('success', 'Certificate generated and sent to the broker email address(es).');
+        } else {
+            audit('certificate_generated', 'policy', $currentPolicyId, 'Customer generated a certificate preview for policy ' . (string)$selectedPolicy['policy_number']);
+            flash('success', 'Certificate preview generated from your policy records.');
+        }
+        redirect('/customer/index.php?tab=certificate&policy_id=' . $currentPolicyId . '&certificate_file=' . $fileId . '#certificate-preview');
+    } catch (\Throwable $exception) {
+        error_log('Customer certificate action failed: ' . $exception->getMessage());
+        $certificateErrors[] = $exception instanceof \RuntimeException
+            ? $exception->getMessage()
+            : 'Certificate could not be generated. Please check the server error log or contact your agency.';
     }
 }
 
@@ -234,7 +395,50 @@ $flash = getFlash();
         <?php endif; ?>
 
     <?php elseif ($tab === 'certificate'): ?>
-        <section class="panel customer-placeholder"><div class="empty-icon">▧</div><h2>Certificate of Insurance</h2><p class="muted">Certificate preview and download will be connected in the next phase. Your policy information remains available in the Policies tab.</p><a class="btn primary" href="<?= customerText(appUrl('/customer/index.php?tab=policies'.($selectedPolicy ? '&policy_id='.(int)$selectedPolicy['id'] : ''))) ?>">View Policies</a></section>
+        <?php if (!$policies || !$selectedPolicy): ?>
+            <section class="panel customer-placeholder"><div class="empty-icon">▧</div><h2>No policy available</h2><p class="muted">A certificate can be generated after your agency adds a policy to your account.</p></section>
+        <?php else: ?>
+            <div class="certificate-topline">
+                <div><p class="eyebrow">CERTIFICATE OF INSURANCE</p><h2><?= customerText($selectedPolicy['policy_number']) ?></h2><p class="muted"><?= customerText($selectedPolicy['carrier_name'] ?: 'Insurance company not provided') ?> · <?= customerDate($selectedPolicy['effective_date']) ?> – <?= customerDate($selectedPolicy['expiration_date']) ?></p></div>
+                <?php if (count($policies) > 1): ?><form method="get" class="policy-select-form"><input type="hidden" name="tab" value="certificate"><label for="certificate-policy">Policy</label><select id="certificate-policy" name="policy_id" onchange="this.form.submit()"><?php foreach ($policies as $policyOption): ?><option value="<?= (int)$policyOption['id'] ?>" <?= (int)$policyOption['id'] === (int)$selectedPolicy['id'] ? 'selected' : '' ?>><?= customerText($policyOption['policy_number']) ?> · <?= customerText($policyOption['business_line'] ?? 'Policy') ?></option><?php endforeach; ?></select></form><?php endif; ?>
+            </div>
+            <div class="certificate-layout">
+                <section class="panel certificate-form-panel">
+                    <div class="panel-heading"><h2>Send to Broker</h2><span>Policy data is read-only</span></div>
+                    <?php foreach ($certificateErrors as $certificateError): ?><div class="alert error certificate-error"><?= customerText($certificateError) ?></div><?php endforeach; ?>
+                    <div class="certificate-data-note"><strong>Policy details are loaded automatically.</strong> Insured, carrier, policy number and dates come from your saved insurance records. Enter certificate holder and delivery information below.</div>
+                    <form method="post" action="<?= customerText(appUrl('/customer/index.php?tab=certificate&policy_id='.(int)$selectedPolicy['id'])) ?>" class="certificate-form">
+                        <input type="hidden" name="_csrf" value="<?= customerText(csrfToken()) ?>">
+                        <input type="hidden" name="policy_id" value="<?= (int)$selectedPolicy['id'] ?>">
+                        <div class="cert-form-section">EMAIL DELIVERY</div>
+                        <label>Broker Email(s)<input type="text" name="broker_emails" value="<?= customerText((string)$certificateForm['broker_emails']) ?>" placeholder="broker@example.com, broker2@example.com"><small>Required only when sending. Separate multiple email addresses with commas.</small></label>
+                        <label>CC Email(s)<input type="text" name="cc_emails" value="<?= customerText((string)$certificateForm['cc_emails']) ?>" placeholder="cc@example.com, cc2@example.com"><small>Optional. Separate multiple addresses with commas.</small></label>
+                        <label>Broker Name<input type="text" name="broker_name" value="<?= customerText((string)$certificateForm['broker_name']) ?>" maxlength="190" placeholder="Broker name"></label>
+                        <label>Broker Address<textarea name="broker_address" rows="2" maxlength="700" placeholder="Broker mailing address"><?= customerText((string)$certificateForm['broker_address']) ?></textarea></label>
+                        <div class="cert-form-section">CERTIFICATE HOLDER</div>
+                        <label>Certificate Holder Name *<input type="text" name="certificate_holder_name" value="<?= customerText((string)$certificateForm['certificate_holder_name']) ?>" required maxlength="190" placeholder="Company or organization name"></label>
+                        <label>Certificate Holder Address *<textarea name="certificate_holder_address" rows="3" required maxlength="700" placeholder="Street, city, state and ZIP"><?= customerText((string)$certificateForm['certificate_holder_address']) ?></textarea><small>This name and address are placed in the certificate holder section of the PDF.</small></label>
+                        <div class="cert-form-section">VEHICLES TO INCLUDE</div>
+                        <label>Vehicles<select name="vehicle_ids[]" multiple size="4" class="vehicle-multiselect"><?php foreach ($vehicles as $vehicleOption): ?><option value="<?= (int)$vehicleOption['id'] ?>" <?= in_array((string)$vehicleOption['id'], array_map('strval', (array)$certificateForm['vehicle_ids']), true) ? 'selected' : '' ?>><?= customerText($vehicleOption['vin']) ?> (<?= customerText(trim(($vehicleOption['model_year'] ?? '').' '.($vehicleOption['make'] ?? '').' '.($vehicleOption['model'] ?? ''))) ?>)</option><?php endforeach; ?></select><small>Use Ctrl (Windows) or Command (Mac) to select multiple vehicles. If none is selected, all available vehicles are included.</small></label>
+                        <div class="certificate-form-actions"><button class="btn primary" type="submit" name="certificate_action" value="send">➤ Send to Broker</button><button class="btn secondary" type="submit" name="certificate_action" value="preview">▣ Generate PDF Preview</button></div>
+                        <p class="certificate-small-note">Missing policy limits or insurer identifiers stay blank when they are not present in the database.</p>
+                    </form>
+                </section>
+                <section class="panel certificate-preview-panel" id="certificate-preview">
+                    <div class="panel-heading"><h2>PDF Preview</h2><span><?= $generatedId ? 'Generated from policy data' : 'Preview will appear here' ?></span></div>
+                    <div class="certificate-preview-inner">
+                        <div class="preview-status"><span class="status-pill <?= $generatedId ? 'is-active' : '' ?>"><?= $generatedId ? '● Preview ready' : 'Waiting for preview' ?></span><span class="muted small">ACORD 25 · US Letter</span></div>
+                        <?php if ($generatedId): ?>
+                            <iframe id="certificatePreviewFrame" class="certificate-pdf-frame" title="Certificate of Insurance PDF preview" src="<?= customerText(appUrl('/customer/index.php?file='.$generatedId)) ?>#toolbar=1&navpanes=0"></iframe>
+                            <div class="certificate-preview-actions"><a class="btn primary" href="<?= customerText(appUrl('/customer/index.php?file='.$generatedId.'&download=1')) ?>">↓ Download PDF</a><a class="btn secondary" href="<?= customerText(appUrl('/customer/index.php?file='.$generatedId)) ?>" target="_blank" rel="noopener">⎙ Print Certificate</a></div>
+                        <?php else: ?>
+                            <div class="certificate-preview-empty"><div class="empty-icon">▧</div><h3>Certificate preview</h3><p class="muted">Enter the certificate holder information, then select Generate PDF Preview. Policy number, carrier and dates will be taken from your saved policy.</p></div>
+                        <?php endif; ?>
+                    </div>
+                    <div class="certificate-footnote">Technical PDF generation only. The issuing agency must review and authorize certificate content before it is relied upon as evidence of coverage.</div>
+                </section>
+            </div>
+        <?php endif; ?>
     <?php else: ?>
         <section class="panel customer-placeholder"><div class="empty-icon">▣</div><h2>Cab Card</h2><p class="muted">Cab card documents and downloads will be connected after the document requirements are confirmed.</p><a class="btn primary" href="<?= customerText(appUrl('/customer/index.php?tab=policies'.($selectedPolicy ? '&policy_id='.(int)$selectedPolicy['id'] : ''))) ?>">View Policies</a></section>
     <?php endif; ?>

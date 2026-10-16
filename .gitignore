@@ -6,3 +6,5 @@
 /storage/private/*
 !/storage/private/.gitkeep
 .DS_Store
+/storage/templates/acord25-template.pdf
+/storage/private/*.pdf

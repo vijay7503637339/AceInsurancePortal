@@ -5,7 +5,10 @@
   "require": {
     "php": "^8.1",
     "ext-pdo": "*",
-    "ext-json": "*"
+    "ext-json": "*",
+    "setasign/fpdf": "^1.8.6",
+    "setasign/fpdi": "^2.6",
+    "ext-iconv": "*"
   },
   "autoload": {
     "psr-4": {
