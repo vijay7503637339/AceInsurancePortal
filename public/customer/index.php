@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 require dirname(__DIR__,2).'/app/bootstrap.php';
-use AcePortal\\Auth;
+use AcePortal\Auth;
 $u=Auth::requireRoles(['customer']);
 $q=db()->prepare('SELECT * FROM insureds WHERE id=:id');$q->execute(['id'=>$u['insured_id']]);$insured=$q->fetch();
 $q=db()->prepare('SELECT policy_number,carrier_name,business_line,effective_date,expiration_date,total_premium,status FROM policies WHERE insured_id=:id ORDER BY id DESC');$q->execute(['id'=>$u['insured_id']]);$policies=$q->fetchAll();
