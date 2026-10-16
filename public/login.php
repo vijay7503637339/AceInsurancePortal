@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 require dirname(__DIR__).'/app/bootstrap.php';
-use AcePortal\\Auth;
+use AcePortal\Auth;
 $error=null;$portal=(string)($_GET['portal']??$_POST['portal']??'customer');if(!in_array($portal,['customer','agency'],true))$portal='customer';
 if($_SERVER['REQUEST_METHOD']==='POST'){verifyCsrf();$portal=(string)($_POST['portal']??'customer');$portal=in_array($portal,['customer','agency'],true)?$portal:'customer';if(Auth::attempt((string)($_POST['email']??''),(string)($_POST['password']??''),$portal))redirect($portal==='agency'?'/agency/index.php':'/customer/index.php');$error='Invalid credentials, or account not allowed on this login tab.';}
 $flash=getFlash();?>
