@@ -1,0 +1,13 @@
+Options -Indexes
+RewriteEngine On
+
+# Keep private application files, configuration, repository metadata and dependencies out of public access.
+RewriteRule ^(?:\.git|app|config|database|scripts|storage|tests|vendor)(?:/|$) - [F,L,NC]
+RewriteRule ^(?:composer\.(?:json|lock)|README\.md|\.gitignore)$ - [F,L,NC]
+
+# Direct /public/ URLs continue to work.
+RewriteRule ^public(?:/|$) - [L]
+
+# Support a cPanel subfolder install such as /ace/ while the public app lives in /public.
+RewriteRule ^(assets/.*|auth/.*|agency/.*|customer/.*|login\.php|logout\.php|index\.php)$ public/$1 [L,NC]
+RewriteRule ^$ public/index.php [L]

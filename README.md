@@ -15,7 +15,7 @@ PHP 8.1+ and MySQL foundation for an insurance portal with separate Customer Log
 2. Run `composer install --no-dev --optimize-autoloader`.
 3. Create database/user in cPanel and import `database/schema.sql` using phpMyAdmin.
 4. Copy `config/database.example.php` to `config/database.php` and enter credentials. Copy `config/mail.example.php` to `config/mail.php` and configure a real sender address.
-5. Serve `public/` as document root. Keep `app/`, `config/`, `database/`, `storage/` and `vendor/` outside public HTTP access.
+5. Preferred: serve `public/` as the document root and keep `app/`, `config/`, `database/`, `storage/` and `vendor/` outside public HTTP access. For a cPanel subfolder deployment at `public_html/ace`, the root `.htaccess` supports `/ace/login.php` routes and denies direct web access to private project directories; this requires Apache `mod_rewrite` and `AllowOverride`.
 6. Create the initial admin using CLI only: `php scripts/create_admin.php \"Portal Admin\" admin@example.com \"A-STRONG-PASSWORD\"`.
 7. Configure/verify outbound email. Phase 1 uses PHP `mail()` fallback; production SMTP with SPF/DKIM should be configured before live use.
 8. Visit `/login.php`. Both admin and staff use Agency Login; customers use Customer Login.
