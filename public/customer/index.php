@@ -205,6 +205,52 @@ if ($selectedPolicy) {
 }
 
 
+// Cab card PDF streaming is restricted to the authenticated customer's current policy/vehicle records.
+if (isset($_GET['cab_card_pdf']) || isset($_GET['cab_cards_all'])) {
+    if (!$selectedPolicy) {
+        http_response_code(404);
+        exit('No policy is available for this customer.');
+    }
+    if (!$vehicles) {
+        http_response_code(404);
+        exit('No active vehicles are available for this policy.');
+    }
+
+    $downloadCabCard = (string)($_GET['download'] ?? '') === '1';
+    if (isset($_GET['cab_cards_all'])) {
+        $cabCardVehicles = $vehicles;
+    } else {
+        $vehicleId = filter_var($_GET['cab_card_pdf'] ?? null, FILTER_VALIDATE_INT);
+        if (!$vehicleId || $vehicleId < 1) {
+            http_response_code(400);
+            exit('Invalid vehicle ID.');
+        }
+        $cabCardVehicles = array_values(array_filter(
+            $vehicles,
+            static fn(array $vehicle): bool => (int)$vehicle['id'] === (int)$vehicleId
+        ));
+        if (!$cabCardVehicles) {
+            http_response_code(404);
+            exit('This vehicle is not available under the selected policy.');
+        }
+    }
+
+    try {
+        \AcePortal\CabCardPdf::stream(
+            $cabCardVehicles,
+            $selectedPolicy,
+            $insured,
+            configFile('mail'),
+            $downloadCabCard
+        );
+    } catch (\Throwable $exception) {
+        error_log('Customer cab card PDF failed: ' . $exception->getMessage());
+        http_response_code(500);
+        exit('Cab card PDF could not be generated. Please contact your agency if the problem continues.');
+    }
+}
+
+
 
 $certificateErrors = [];
 $certificateForm = [
@@ -500,8 +546,51 @@ $flash = getFlash();
                 </section>
             </div>
         <?php endif; ?>
-    <?php else: ?>
-        <section class="panel customer-placeholder"><div class="empty-icon">▣</div><h2>Cab Card</h2><p class="muted">Cab card documents and downloads will be connected after the document requirements are confirmed.</p><a class="btn primary" href="<?= customerText(appUrl('/customer/index.php?tab=policies'.($selectedPolicy ? '&policy_id='.(int)$selectedPolicy['id'] : ''))) ?>">View Policies</a></section>
+    <?php elseif ($tab === 'cab-card'): ?>
+        <?php if (!$policies || !$selectedPolicy): ?>
+            <section class="panel customer-placeholder"><div class="empty-icon">▣</div><h2>No policy available</h2><p class="muted">Your agency needs to add a policy before cab cards can be generated.</p><a class="btn primary" href="<?= customerText(appUrl('/customer/index.php?tab=policies')) ?>">View Policies</a></section>
+        <?php else: ?>
+            <div class="cab-card-toolbar">
+                <div><p class="eyebrow">INSURANCE IDENTIFICATION CARDS</p><h2>Cab Cards <span class="count-pill"><?= count($vehicles) ?></span></h2><p class="muted">Policy <?= customerText($selectedPolicy['policy_number']) ?> · <?= customerDate($selectedPolicy['effective_date']) ?> – <?= customerDate($selectedPolicy['expiration_date']) ?></p></div>
+                <?php if ($vehicles): ?><a class="btn primary cab-card-download-all" href="<?= customerText(appUrl('/customer/index.php?tab=cab-card&policy_id='.(int)$selectedPolicy['id'].'&cab_cards_all=1&download=1')) ?>">↓ Download All Cab Cards</a><?php endif; ?>
+            </div>
+
+            <?php if (count($policies) > 1): ?>
+                <form method="get" class="cab-card-policy-select"><input type="hidden" name="tab" value="cab-card"><label for="cab-card-policy">Select policy</label><select id="cab-card-policy" name="policy_id" onchange="this.form.submit()"><?php foreach ($policies as $policyOption): ?><option value="<?= (int)$policyOption['id'] ?>" <?= (int)$policyOption['id'] === (int)$selectedPolicy['id'] ? 'selected' : '' ?>><?= customerText($policyOption['policy_number']) ?> · <?= customerText($policyOption['business_line'] ?? 'Policy') ?></option><?php endforeach; ?></select></form>
+            <?php endif; ?>
+
+            <?php if (!$vehicles): ?>
+                <section class="panel customer-empty"><div class="empty-icon">▣</div><h2>No active vehicles found</h2><p class="muted">There are no active vehicles associated with this policy yet. Please contact your agency or check the Vehicles section.</p><a class="btn secondary" href="<?= customerText(appUrl('/customer/index.php?tab=policies&policy_id='.(int)$selectedPolicy['id'])) ?>">View Policy Details</a></section>
+            <?php else: ?>
+                <div class="cab-card-grid">
+                    <?php foreach ($vehicles as $vehicleIndex => $vehicle): ?>
+                        <?php
+                            $cabType = strtoupper(trim((string)($vehicle['vehicle_type'] ?? '')));
+                            if ($cabType === '') $cabType = 'TRUCK';
+                            $cabMakeModel = trim((string)($vehicle['make'] ?? '') . ' ' . (string)($vehicle['model'] ?? ''));
+                            $cabBaseUrl = '/customer/index.php?tab=cab-card&policy_id='.(int)$selectedPolicy['id'].'&cab_card_pdf='.(int)$vehicle['id'];
+                        ?>
+                        <article class="cab-card-item">
+                            <div class="cab-card-item-header"><span><span class="cab-truck-icon">▣</span> <?= customerText($cabType) ?></span><span class="cab-card-number">#<?= (int)$vehicleIndex + 1 ?></span></div>
+                            <div class="cab-card-item-body">
+                                <div class="cab-detail full"><span>VIN</span><strong class="cab-vin"><?= customerText($vehicle['vin']) ?></strong></div>
+                                <div class="cab-vehicle-meta">
+                                    <div><span>Make/Model</span><strong><?= customerText($cabMakeModel ?: '—') ?></strong></div>
+                                    <div><span>Year</span><strong><?= customerText($vehicle['model_year'] ?? '—') ?></strong></div>
+                                </div>
+                                <div class="cab-detail"><span>Policy</span><strong><?= customerText($selectedPolicy['policy_number']) ?></strong></div>
+                                <div class="cab-card-actions">
+                                    <a class="btn secondary" href="<?= customerText(appUrl($cabBaseUrl)) ?>" target="_blank" rel="noopener">◉ View Cab Card</a>
+                                    <a class="btn cab-print" href="<?= customerText(appUrl($cabBaseUrl)) ?>" target="_blank" rel="noopener">▣ Print Card</a>
+                                    <a class="btn cab-download" href="<?= customerText(appUrl($cabBaseUrl.'&download=1')) ?>">↓ Download PDF</a>
+                                </div>
+                            </div>
+                        </article>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+            <p class="cab-card-note">Cab cards are generated from current policy and vehicle records. Verify the displayed information with your issuing agency before relying on the card as proof of insurance.</p>
+        <?php endif; ?>
     <?php endif; ?>
 </main>
 </body>
