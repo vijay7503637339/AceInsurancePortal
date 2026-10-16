@@ -37,6 +37,67 @@ function coveragePairs(array $source, string $prefix = ''): array {
     return $pairs;
 }
 
+
+function certificateEmails(string $raw): array
+{
+    $raw = trim($raw);
+    if ($raw === '') return [];
+    $parts = preg_split('/[,;]+/', $raw) ?: [];
+    if (count($parts) > 20) throw new \RuntimeException('Please use no more than 20 email recipients.');
+    $emails = [];
+    foreach ($parts as $part) {
+        $email = trim($part);
+        if ($email === '') continue;
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL) || preg_match('/[\r\n]/', $email)) {
+            throw new \RuntimeException('One or more email addresses are invalid. Use comma-separated email addresses.');
+        }
+        $emails[] = strtolower($email);
+    }
+    return array_values(array_unique($emails));
+}
+
+function sendCertificateMail(array $to, array $cc, string $policyNumber, string $insuredName, string $holderName, string $attachmentPath): bool
+{
+    if (!$to) throw new \RuntimeException('Enter at least one broker email address before sending the certificate.');
+    $mailConfig = configFile('mail');
+    $from = trim((string)($mailConfig['from_email'] ?? ''));
+    if (!filter_var($from, FILTER_VALIDATE_EMAIL)) {
+        throw new \RuntimeException('Configure a valid sender email in config/mail.php before sending certificates.');
+    }
+    if (!is_file($attachmentPath) || !is_readable($attachmentPath)) {
+        throw new \RuntimeException('The generated certificate could not be opened for email attachment.');
+    }
+    $pdf = file_get_contents($attachmentPath);
+    if (!is_string($pdf) || !str_starts_with($pdf, '%PDF-')) {
+        throw new \RuntimeException('The generated certificate attachment is not a valid PDF.');
+    }
+    $fromName = str_replace(["\r", "\n", '"'], '', (string)($mailConfig['from_name'] ?? 'Ace Insurance Portal'));
+    $boundary = '=_AcePortal_' . bin2hex(random_bytes(16));
+    $safePolicy = preg_replace('/[^A-Za-z0-9_-]+/', '-', $policyNumber) ?: 'policy';
+    $filename = 'certificate-' . trim($safePolicy, '-') . '.pdf';
+    $subjectPolicy = str_replace(["\r", "\n"], '', $policyNumber);
+    $subject = 'Certificate of Insurance - Policy ' . $subjectPolicy;
+    $bodyText = "Hello,\n\nPlease find attached the Certificate of Insurance for policy {$policyNumber}.\nInsured: {$insuredName}\nCertificate holder: {$holderName}\n\nThis document was generated from the policy information currently on file. Please contact the issuing agency if any corrections are required.\n";
+    $headers = [
+        'From: ' . $fromName . ' <' . $from . '>',
+        'MIME-Version: 1.0',
+        'Content-Type: multipart/mixed; boundary="' . $boundary . '"',
+        'X-Mailer: PHP/' . PHP_VERSION,
+    ];
+    if ($cc) $headers[] = 'Cc: ' . implode(', ', $cc);
+    $body = '--' . $boundary . "\r\n";
+    $body .= "Content-Type: text/plain; charset=UTF-8\r\n";
+    $body .= "Content-Transfer-Encoding: 8bit\r\n\r\n";
+    $body .= $bodyText . "\r\n";
+    $body .= '--' . $boundary . "\r\n";
+    $body .= 'Content-Type: application/pdf; name="' . $filename . '"' . "\r\n";
+    $body .= 'Content-Transfer-Encoding: base64' . "\r\n";
+    $body .= 'Content-Disposition: attachment; filename="' . $filename . '"' . "\r\n\r\n";
+    $body .= chunk_split(base64_encode($pdf)) . "\r\n";
+    $body .= '--' . $boundary . "--\r\n";
+    return mail(implode(', ', $to), $subject, $body, implode("\r\n", $headers));
+}
+
 $q = db()->prepare('SELECT * FROM insureds WHERE id = :id LIMIT 1');
 $q->execute(['id' => $insuredId]);
 $insured = $q->fetch();
