@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 require dirname(__DIR__,2).'/app/bootstrap.php';
-use AcePortal\\Auth;
+use AcePortal\Auth;
 $u=Auth::requireRoles(['admin']);
 $error=null;
 if($_SERVER['REQUEST_METHOD']==='POST'){verifyCsrf();try{$name=trim((string)($_POST['full_name']??''));$email=mb_strtolower(trim((string)($_POST['email']??'')));$pw=(string)($_POST['password']??'');if($name===''||!filter_var($email,FILTER_VALIDATE_EMAIL))throw new RuntimeException('Enter a name and valid email.');if(strlen($pw)<12)throw new RuntimeException('Use a password of at least 12 characters.');$q=db()->prepare("INSERT INTO users(role,full_name,email,password_hash,created_by) VALUES('staff',:n,:e,:p,:actor)");$q->execute(['n'=>$name,'e'=>$email,'p'=>password_hash($pw,PASSWORD_DEFAULT),'actor'=>$u['id']]);$id=(int)db()->lastInsertId();audit('create','user',$id,'Created staff account');flash('success','Staff account created.');redirect('/agency/staff.php');}catch(Throwable $x){$error=$x instanceof PDOException&&(string)$x->getCode()==='23000'?'Email already registered.':$x->getMessage();}}
