@@ -1,0 +1,8 @@
+/config/database.php
+/config/mail.php
+/vendor/
+/.env
+/storage/logs/*.log
+/storage/private/*
+!/storage/private/.gitkeep
+.DS_Store
