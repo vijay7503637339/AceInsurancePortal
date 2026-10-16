@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 require dirname(__DIR__,2).'/app/bootstrap.php';
-use AcePortal\\Auth;use AcePortal\\Crud;
+use AcePortal\Auth;use AcePortal\Crud;
 $u=Auth::requireRoles(['admin','staff']);$key=(string)($_GET['entity']??$_POST['entity']??'insureds');$entity=Crud::entity($key);$error=null;$id=isset($_GET['id'])?(int)$_GET['id']:(isset($_POST['id'])?(int)$_POST['id']:null);$editing=$id?Crud::find($key,$id):null;
 if($_SERVER['REQUEST_METHOD']==='POST'){verifyCsrf();try{if(($_POST['action']??'')==='delete'){Crud::delete($key,(int)($_POST['id']??0));flash('success','Record deleted.');redirect('/agency/crud.php?entity='.urlencode($key));}Crud::save($key,$_POST,$id,(int)$u['id']);flash('success','Record saved.');redirect('/agency/crud.php?entity='.urlencode($key));}catch(Throwable $x){$error=$x instanceof PDOException&&(string)$x->getCode()==='23000'?'Duplicate value or linked record prevents this action.':$x->getMessage();$editing=$_POST;}}
 $flash=getFlash();$rows=Crud::rows($key);$customers=db()->query('SELECT id,legal_name,dot_number FROM insureds ORDER BY legal_name')->fetchAll();
