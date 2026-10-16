@@ -1,0 +1,12 @@
+# Manual test checklist
+- Import database/schema.sql into an empty test database.
+- Create first admin with scripts/create_admin.php (CLI only).
+- Verify Agency Login accepts admin and staff; Customer Login accepts customers only.
+- Create an insured record and confirm DOT number and email.
+- Signup with unknown DOT or mismatched email must fail.
+- Verify email code expiry and attempt limit, then create a password.
+- Ensure customer sees only their insured profile and policies.
+- Verify staff can do CRUD but gets HTTP 403 for /agency/audit-logs.php.
+- Verify admin can view audit logs with staff CRUD actions.
+- Test FK protections for deleting linked records.
+- Configure SMTP and HTTPS before production use.
