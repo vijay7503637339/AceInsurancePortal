@@ -8,14 +8,20 @@ function configFile(string $file):array{$path=APP_ROOT.'/config/'.$file.'.php';i
 function db():PDO{static $pdo;if(!$pdo instanceof PDO){$c=configFile('database');$dsn=sprintf('mysql:host=%s;dbname=%s;charset=%s',$c['host'],$c['database'],$c['charset']??'utf8mb4');$pdo=new PDO($dsn,$c['username'],$c['password'],[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC,PDO::ATTR_EMULATE_PREPARES=>false]);}return $pdo;}
 function e(?string $v):string{return htmlspecialchars($v??'',ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8');}
 function appBasePath():string{
- $script=(string)($_SERVER['SCRIPT_NAME']??'');
- $marker='/public/';
- $pos=strpos($script,$marker);
- if($pos===false)return '';
- $requestPath=(string)(parse_url((string)($_SERVER['REQUEST_URI']??''),PHP_URL_PATH)??'');
- $prefix=substr($script,0,$pos);
- if(strpos($requestPath,$marker)!==false||str_ends_with($requestPath,'/public'))return $prefix.'/public';
- return $prefix;
+ $requestPath=(string)(parse_url((string)($_SERVER['REQUEST_URI']??'/'),PHP_URL_PATH)??'/');
+ if($requestPath==='')$requestPath='/';
+ $publicPos=strpos($requestPath,'/public/');
+ if($publicPos!==false)return substr($requestPath,0,$publicPos+strlen('/public'));
+ if(str_ends_with($requestPath,'/public'))return $requestPath;
+ foreach(['/assets/','/auth/','/agency/','/customer/'] as $marker){
+  $pos=strpos($requestPath,$marker);
+  if($pos!==false)return substr($requestPath,0,$pos);
+ }
+ foreach(['/login.php','/logout.php','/index.php'] as $suffix){
+  if(str_ends_with($requestPath,$suffix))return substr($requestPath,0,strlen($requestPath)-strlen($suffix));
+ }
+ if(str_ends_with($requestPath,'/'))return rtrim($requestPath,'/');
+ return '';
 }
 function appUrl(string $path=''):string{
  if(preg_match('~^(?:https?:)?//~i',$path))return $path;
