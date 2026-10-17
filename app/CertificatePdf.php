@@ -77,8 +77,9 @@ final class CertificatePdf
             if (is_array($decoded)) $coverage = $decoded;
         }
         $agency = trim((string)($mailConfig['agency_name'] ?? $policy['broker_name'] ?? $mailConfig['from_name'] ?? ''));
-        $holderText = trim((string)($holder['certificate_holder_name'] ?? ''));
-        $holderAddress = trim((string)($holder['certificate_holder_address'] ?? ''));
+        // The broker entered on the customer form is also the certificate holder.
+        $holderText = trim((string)($holder['broker_name'] ?? $holder['certificate_holder_name'] ?? ''));
+        $holderAddress = trim((string)($holder['broker_address'] ?? $holder['certificate_holder_address'] ?? ''));
         if ($holderAddress !== '') $holderText .= ($holderText !== '' ? "\n" : '') . $holderAddress;
 
         $data = [

@@ -258,14 +258,14 @@ $certificateForm = [
     'cc_emails' => '',
     'broker_name' => trim((string)($selectedPolicy['broker_name'] ?? '')),
     'broker_address' => '',
-    'certificate_holder_name' => '',
-    'certificate_holder_address' => '',
     'vehicle_ids' => array_map(static fn(array $v): string => (string)$v['id'], $vehicles),
 ];
 $currentPolicyId = $selectedPolicy ? (int)$selectedPolicy['id'] : 0;
 if ($currentPolicyId > 0 && isset($_SESSION['certificate_form'][$currentPolicyId]) && is_array($_SESSION['certificate_form'][$currentPolicyId])) {
     $certificateForm = array_merge($certificateForm, $_SESSION['certificate_form'][$currentPolicyId]);
 }
+// Remove deprecated holder inputs saved by older versions; broker details now fill the PDF holder area.
+unset($certificateForm['certificate_holder_name'], $certificateForm['certificate_holder_address']);
 $generatedId = null;
 $requestedCertificateId = is_string($_GET['certificate_file'] ?? null) ? (string)$_GET['certificate_file'] : '';
 if ($currentPolicyId > 0 && preg_match('/^[a-f0-9]{32}$/', $requestedCertificateId)) {
@@ -292,8 +292,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['certificate_action'])
         $certificateForm['cc_emails'] = trim(substr((string)($_POST['cc_emails'] ?? ''), 0, 1200));
         $certificateForm['broker_name'] = trim(substr((string)($_POST['broker_name'] ?? ''), 0, 190));
         $certificateForm['broker_address'] = trim(substr((string)($_POST['broker_address'] ?? ''), 0, 700));
-        $certificateForm['certificate_holder_name'] = trim(substr((string)($_POST['certificate_holder_name'] ?? ''), 0, 190));
-        $certificateForm['certificate_holder_address'] = trim(substr((string)($_POST['certificate_holder_address'] ?? ''), 0, 700));
         $rawVehicleIds = $_POST['vehicle_ids'] ?? [];
         if (!is_array($rawVehicleIds)) $rawVehicleIds = [];
         $allowedVehicleIds = array_map(static fn(array $v): int => (int)$v['id'], $vehicles);
@@ -310,8 +308,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['certificate_action'])
         $certificateForm['vehicle_ids'] = array_map('strval', $selectedVehicleIds);
         $_SESSION['certificate_form'][$currentPolicyId] = $certificateForm;
 
-        if ($certificateForm['certificate_holder_name'] === '' || $certificateForm['certificate_holder_address'] === '') {
-            throw new \RuntimeException('Enter the certificate holder name and address.');
+        if ($certificateForm['broker_name'] === '' || $certificateForm['broker_address'] === '') {
+            throw new \RuntimeException('Enter the broker name and broker address. These details will appear as the certificate holder on the PDF.');
         }
 
         $toEmails = [];
@@ -320,9 +318,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['certificate_action'])
             $toEmails = certificateEmails($certificateForm['broker_emails']);
             $ccEmails = certificateEmails($certificateForm['cc_emails']);
             if (!$toEmails) throw new \RuntimeException('Enter at least one broker email address.');
-            if ($certificateForm['broker_name'] === '' || $certificateForm['broker_address'] === '') {
-                throw new \RuntimeException('Enter the broker name and broker address before sending.');
-            }
         }
 
         $selectedVehicles = array_values(array_filter(
@@ -359,7 +354,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['certificate_action'])
                 $ccEmails,
                 (string)$selectedPolicy['policy_number'],
                 (string)$insured['legal_name'],
-                $certificateForm['certificate_holder_name'],
+                $certificateForm['broker_name'],
                 $outputPath
             );
             if (!$mailSent) {
@@ -520,11 +515,9 @@ $flash = getFlash();
                         <div class="cert-form-section">EMAIL DELIVERY</div>
                         <label>Broker Email(s)<input type="text" name="broker_emails" value="<?= customerText((string)$certificateForm['broker_emails']) ?>" placeholder="broker@example.com, broker2@example.com"><small>Required only when sending. Separate multiple email addresses with commas.</small></label>
                         <label>CC Email(s)<input type="text" name="cc_emails" value="<?= customerText((string)$certificateForm['cc_emails']) ?>" placeholder="cc@example.com, cc2@example.com"><small>Optional. Separate multiple addresses with commas.</small></label>
-                        <label>Broker Name<input type="text" name="broker_name" value="<?= customerText((string)$certificateForm['broker_name']) ?>" maxlength="190" placeholder="Broker name"></label>
-                        <label>Broker Address<textarea name="broker_address" rows="2" maxlength="700" placeholder="Broker mailing address"><?= customerText((string)$certificateForm['broker_address']) ?></textarea></label>
-                        <div class="cert-form-section">CERTIFICATE HOLDER</div>
-                        <label>Certificate Holder Name *<input type="text" name="certificate_holder_name" value="<?= customerText((string)$certificateForm['certificate_holder_name']) ?>" required maxlength="190" placeholder="Company or organization name"></label>
-                        <label>Certificate Holder Address *<textarea name="certificate_holder_address" rows="3" required maxlength="700" placeholder="Street, city, state and ZIP"><?= customerText((string)$certificateForm['certificate_holder_address']) ?></textarea><small>This name and address are placed in the certificate holder section of the PDF.</small></label>
+                        <div class="cert-form-section">BROKER / CERTIFICATE HOLDER</div>
+                        <label>Broker Name *<input type="text" name="broker_name" value="<?= customerText((string)$certificateForm['broker_name']) ?>" required maxlength="190" placeholder="Certificate holder name"></label>
+                        <label>Broker Address *<textarea name="broker_address" rows="3" maxlength="700" required placeholder="Certificate holder address"><?= customerText((string)$certificateForm['broker_address']) ?></textarea><small>This broker name and address will be placed in the Certificate Holder section of the PDF.</small></label>
                         <div class="cert-form-section">VEHICLES TO INCLUDE</div>
                         <label>Vehicles<select name="vehicle_ids[]" multiple size="4" class="vehicle-multiselect"><?php foreach ($vehicles as $vehicleOption): ?><option value="<?= (int)$vehicleOption['id'] ?>" <?= in_array((string)$vehicleOption['id'], array_map('strval', (array)$certificateForm['vehicle_ids']), true) ? 'selected' : '' ?>><?= customerText($vehicleOption['vin']) ?> (<?= customerText(trim(($vehicleOption['model_year'] ?? '').' '.($vehicleOption['make'] ?? '').' '.($vehicleOption['model'] ?? ''))) ?>)</option><?php endforeach; ?></select><small>Use Ctrl (Windows) or Command (Mac) to select multiple vehicles. If none is selected, all available vehicles are included.</small></label>
                         <div class="certificate-form-actions"><button class="btn primary" type="submit" name="certificate_action" value="send">➤ Send to Broker</button><button class="btn secondary" type="submit" name="certificate_action" value="preview">▣ Generate PDF Preview</button></div>
