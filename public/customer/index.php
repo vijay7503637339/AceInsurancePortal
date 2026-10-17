@@ -528,7 +528,7 @@ $flash = getFlash();
                     <div class="certificate-preview-inner">
                         <div class="preview-status"><span class="status-pill <?= $generatedId ? 'is-active' : '' ?>"><?= $generatedId ? '● Preview ready' : 'Waiting for preview' ?></span><span class="muted small">ACORD 25 · US Letter</span></div>
                         <?php if ($generatedId): ?>
-                            <iframe id="certificatePreviewFrame" class="certificate-pdf-frame" title="Certificate of Insurance PDF preview" src="<?= customerText(appUrl('/customer/index.php?file='.$generatedId)) ?>#toolbar=1&navpanes=0"></iframe>
+                            <iframe id="certificatePreviewFrame" class="certificate-pdf-frame" title="Certificate of Insurance PDF preview" src="<?= customerText(appUrl('/customer/index.php?file='.$generatedId)) ?>#toolbar=0&navpanes=0&scrollbar=0&view=FitH"></iframe>
                             <div class="certificate-preview-actions"><a class="btn primary" href="<?= customerText(appUrl('/customer/index.php?file='.$generatedId.'&download=1')) ?>">↓ Download PDF</a><a class="btn secondary" href="<?= customerText(appUrl('/customer/index.php?file='.$generatedId)) ?>" target="_blank" rel="noopener">⎙ Print Certificate</a></div>
                         <?php else: ?>
                             <div class="certificate-preview-empty"><div class="empty-icon">▧</div><h3>Certificate preview</h3><p class="muted">Enter the certificate holder information, then select Generate PDF Preview. Policy number, carrier and dates will be taken from your saved policy.</p></div>
@@ -572,8 +572,8 @@ $flash = getFlash();
                                 </div>
                                 <div class="cab-detail"><span>Policy</span><strong><?= customerText($selectedPolicy['policy_number']) ?></strong></div>
                                 <div class="cab-card-actions">
-                                    <a class="btn secondary" href="<?= customerText(appUrl($cabBaseUrl)) ?>" target="_blank" rel="noopener">◉ View Cab Card</a>
-                                    <a class="btn cab-print" href="<?= customerText(appUrl($cabBaseUrl)) ?>" target="_blank" rel="noopener">▣ Print Card</a>
+                                    <a class="btn secondary" href="<?= customerText(appUrl($cabBaseUrl).'#toolbar=0&navpanes=0&scrollbar=0&view=FitH') ?>" target="_blank" rel="noopener">◉ View Cab Card</a>
+                                    <a class="btn cab-print" href="<?= customerText(appUrl($cabBaseUrl).'#toolbar=0&navpanes=0&scrollbar=0&view=FitH') ?>" target="_blank" rel="noopener">▣ Print Card</a>
                                     <a class="btn cab-download" href="<?= customerText(appUrl($cabBaseUrl.'&download=1')) ?>">↓ Download PDF</a>
                                 </div>
                             </div>
