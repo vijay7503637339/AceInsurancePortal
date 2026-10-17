@@ -508,7 +508,6 @@ $flash = getFlash();
                 <section class="panel certificate-form-panel">
                     <div class="panel-heading"><h2>Send to Broker</h2><span>Policy data is read-only</span></div>
                     <?php foreach ($certificateErrors as $certificateError): ?><div class="alert error certificate-error"><?= customerText($certificateError) ?></div><?php endforeach; ?>
-                    <div class="certificate-data-note"><strong>Policy details are loaded automatically.</strong> Insured, carrier, policy number and dates come from your saved insurance records. Enter certificate holder and delivery information below.</div>
                     <form method="post" action="<?= customerText(appUrl('/customer/index.php?tab=certificate&policy_id='.(int)$selectedPolicy['id'])) ?>" class="certificate-form">
                         <input type="hidden" name="_csrf" value="<?= customerText(csrfToken()) ?>">
                         <input type="hidden" name="policy_id" value="<?= (int)$selectedPolicy['id'] ?>">
