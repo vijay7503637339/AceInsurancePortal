@@ -49,9 +49,13 @@ final class CabCardPdf
         $h = 195.0;
         $right = $x + $w;
         $policyNumber = trim((string)($policy['policy_number'] ?? ''));
-        $carrier = trim((string)($policy['carrier_name'] ?? ''));
+        $carrier = trim((string)($policy['insurer_a_name'] ?? ''));
+        if ($carrier === '') $carrier = trim((string)($policy['carrier_name'] ?? ''));
         $state = strtoupper(trim((string)($insured['state'] ?? '')));
-        $companyNumber = self::findCoverageValue($policy['coverage_data'] ?? null, ['naic_number', 'company_number', 'insurer_naic', 'naic']);
+        $companyNumber = trim((string)($policy['insurer_a_naic'] ?? ''));
+        if ($companyNumber === '') {
+            $companyNumber = self::findCoverageValue($policy['coverage_data'] ?? null, ['naic_number', 'company_number', 'insurer_naic', 'naic']);
+        }
         $businessLine = strtolower(trim((string)($policy['business_line'] ?? '')));
         $vehicleType = strtolower(trim((string)($vehicle['vehicle_type'] ?? '')));
         $commercial = str_contains($businessLine, 'commercial')

@@ -204,6 +204,25 @@ if ($selectedPolicy) {
     }
 }
 
+$policyInsurers = [];
+if ($selectedPolicy) {
+    $coverageForNaic = [];
+    if (!empty($selectedPolicy['coverage_data'])) {
+        $decoded = json_decode((string)$selectedPolicy['coverage_data'], true);
+        if (is_array($decoded)) $coverageForNaic = $decoded;
+    }
+    foreach (range('A', 'F') as $letter) {
+        $field = 'insurer_' . strtolower($letter);
+        $name = trim((string)($selectedPolicy[$field . '_name'] ?? ''));
+        $naic = trim((string)($selectedPolicy[$field . '_naic'] ?? ''));
+        if ($letter === 'A') {
+            if ($name === '') $name = trim((string)($selectedPolicy['carrier_name'] ?? ''));
+            if ($naic === '') $naic = CertificatePdf::findCoverageValue($coverageForNaic, ['naic_number', 'insurer_naic', 'naic']);
+        }
+        if ($name !== '' || $naic !== '') $policyInsurers[$letter] = ['name' => $name, 'naic' => $naic];
+    }
+}
+
 
 // Cab card PDF streaming is restricted to the authenticated customer's current policy/vehicle records.
 if (isset($_GET['cab_card_pdf']) || isset($_GET['cab_cards_all'])) {
@@ -440,7 +459,9 @@ $flash = getFlash();
             <div class="policy-info-grid">
                 <section class="info-card"><h2>Insurance Details</h2>
                     <dl class="detail-list">
-                        <div><dt>Insurance Company</dt><dd><?= customerText($selectedPolicy['carrier_name'] ?: 'Not provided') ?></dd></div>
+                        <?php if ($policyInsurers): foreach ($policyInsurers as $letter => $insurer): ?>
+                        <div><dt>Insurer <?= customerText($letter) ?></dt><dd><?= customerText($insurer['name'] ?: '—') ?><?= $insurer['naic'] !== '' ? ' · NAIC ' . customerText($insurer['naic']) : '' ?></dd></div>
+                        <?php endforeach; else: ?><div><dt>Insurance Company</dt><dd>Not provided</dd></div><?php endif; ?>
                         <div><dt>Broker</dt><dd><?= customerText($selectedPolicy['broker_name'] ?: 'Not provided') ?></dd></div>
                         <div><dt>Finance Company</dt><dd><?= customerText($selectedPolicy['finance_company'] ?: 'Not provided') ?></dd></div>
                         <div><dt>Business Line</dt><dd><?= customerText($selectedPolicy['business_line'] ?: 'Not provided') ?></dd></div>
@@ -501,7 +522,7 @@ $flash = getFlash();
             <section class="panel customer-placeholder"><div class="empty-icon">▧</div><h2>No policy available</h2><p class="muted">A certificate can be generated after your agency adds a policy to your account.</p></section>
         <?php else: ?>
             <div class="certificate-topline">
-                <div><p class="eyebrow">CERTIFICATE OF INSURANCE</p><h2><?= customerText($selectedPolicy['policy_number']) ?></h2><p class="muted"><?= customerText($selectedPolicy['carrier_name'] ?: 'Insurance company not provided') ?> · <?= customerDate($selectedPolicy['effective_date']) ?> – <?= customerDate($selectedPolicy['expiration_date']) ?></p></div>
+                <div><p class="eyebrow">CERTIFICATE OF INSURANCE</p><h2><?= customerText($selectedPolicy['policy_number']) ?></h2><p class="muted"><?= customerText($selectedPolicy['insurer_a_name'] ?: ($selectedPolicy['carrier_name'] ?: 'Insurance company not provided')) ?> · <?= customerDate($selectedPolicy['effective_date']) ?> – <?= customerDate($selectedPolicy['expiration_date']) ?></p></div>
                 <?php if (count($policies) > 1): ?><form method="get" class="policy-select-form"><input type="hidden" name="tab" value="certificate"><label for="certificate-policy">Policy</label><select id="certificate-policy" name="policy_id" onchange="this.form.submit()"><?php foreach ($policies as $policyOption): ?><option value="<?= (int)$policyOption['id'] ?>" <?= (int)$policyOption['id'] === (int)$selectedPolicy['id'] ? 'selected' : '' ?>><?= customerText($policyOption['policy_number']) ?> · <?= customerText($policyOption['business_line'] ?? 'Policy') ?></option><?php endforeach; ?></select></form><?php endif; ?>
             </div>
             <div class="certificate-layout">

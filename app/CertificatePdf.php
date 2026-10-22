@@ -76,6 +76,18 @@ final class CertificatePdf
             $decoded = json_decode((string)$policy['coverage_data'], true);
             if (is_array($decoded)) $coverage = $decoded;
         }
+        $insurers = [];
+        foreach (range('A', 'F') as $letter) {
+            $field = 'insurer_' . strtolower($letter);
+            $name = trim((string)($policy[$field . '_name'] ?? ''));
+            $naic = trim((string)($policy[$field . '_naic'] ?? ''));
+            if ($letter === 'A') {
+                if ($name === '') $name = trim((string)($policy['carrier_name'] ?? ''));
+                if ($naic === '') $naic = self::findCoverageValue($coverage, ['naic_number', 'insurer_naic', 'naic']);
+            }
+            $insurers[] = ['name' => $name, 'naic' => $naic];
+        }
+
         $agency = trim((string)($mailConfig['agency_name'] ?? $policy['broker_name'] ?? $mailConfig['from_name'] ?? ''));
         // The broker entered on the customer form is also the certificate holder.
         $holderText = trim((string)($holder['broker_name'] ?? $holder['certificate_holder_name'] ?? ''));
@@ -90,8 +102,7 @@ final class CertificatePdf
             'contact_email' => trim((string)($mailConfig['contact_email'] ?? $mailConfig['from_email'] ?? '')),
             'insured_name' => trim((string)($insured['legal_name'] ?? '')),
             'insured_address' => $insuredAddress,
-            'insurer_name' => trim((string)($policy['carrier_name'] ?? '')),
-            'naic_number' => self::findCoverageValue($coverage, ['naic_number', 'insurer_naic', 'naic']),
+            'insurers' => $insurers,
             'certificate_number' => trim((string)($policy['certificate_number'] ?? '')),
             'revision_number' => trim((string)($policy['revision_number'] ?? '')),
             'policy_number' => trim((string)($policy['policy_number'] ?? '')),
@@ -121,8 +132,11 @@ final class CertificatePdf
             self::draw($pdf,$data['contact_email'],123.0,52.3,65.0,3.5,6.0,1);
             self::draw($pdf,$data['insured_name'],7.8,66.5,96.0,4.5,7.0,1);
             self::draw($pdf,$data['insured_address'],7.8,70.4,96.0,11.0,6.5,3);
-            self::draw($pdf,$data['insurer_name'],123.5,60.0,72.0,3.4,6.0,1);
-            self::draw($pdf,$data['naic_number'],194.0,60.0,15.5,3.4,6.0,1);
+            foreach ($data['insurers'] as $index => $insurer) {
+                $insurerY = 60.0 + ($index * 4.4);
+                self::draw($pdf, $insurer['name'], 123.5, $insurerY, 72.0, 3.4, 6.0, 1);
+                self::draw($pdf, $insurer['naic'], 194.0, $insurerY, 15.5, 3.4, 6.0, 1);
+            }
             self::draw($pdf,$data['certificate_number'],93.0,86.4,48.0,4.0,6.5,1);
             self::draw($pdf,$data['revision_number'],183.5,86.4,24.0,4.0,6.5,1);
             self::draw($pdf,$data['policy_number'],76.5,136.2,39.0,4.0,6.6,1);

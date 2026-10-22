@@ -31,3 +31,10 @@ PHP 8.1+ and MySQL foundation for an insurance portal with separate Customer Log
 ## Certificate template
 - The supplied ACORD 25 (2014/01) demo template is stored as a base64 source asset at `storage/templates/acord25-template.pdf.b64` and materialized into private storage on first certificate generation.
 - Generated PDFs are stored under `storage/private/`, denied by the root `.htaccess`, and streamed only to the logged-in customer session that generated them. Confirm applicable licensing/authorization before commercial use.
+
+
+## Multiple policy insurers and NAIC numbers
+- Policy creation/editing supports Insurer A-F, with one company name and one NAIC number per insurer.
+- On a fresh install, `database/schema.sql` includes the fields.
+- On an existing database, run `database/migrations/001_policy_insurers_a_to_f.sql` exactly once after pulling the code. It preserves the legacy carrier as Insurer A and attempts to migrate an existing NAIC value from `coverage_data`.
+- Certificate PDF overlays each populated insurer and NAIC in the corresponding ACORD Insurer A-F row. Cab Card uses Insurer A and its NAIC/company number.
