@@ -38,3 +38,11 @@ PHP 8.1+ and MySQL foundation for an insurance portal with separate Customer Log
 - On a fresh install, `database/schema.sql` includes the fields.
 - On an existing database, run `database/migrations/001_policy_insurers_a_to_f.sql` exactly once after pulling the code. It preserves the legacy carrier as Insurer A and attempts to migrate an existing NAIC value from `coverage_data`.
 - Certificate PDF overlays each populated insurer and NAIC in the corresponding ACORD Insurer A-F row. Cab Card uses Insurer A and its NAIC/company number.
+
+
+## Own Company profile
+- Only `admin` can open/save `/agency/own-company.php`; staff do not see the sidebar link and direct access is denied.
+- Stores company name/address, contact person/phone/email, authorized signatory name and an optional private PNG/JPEG signature image.
+- Existing database: run `database/migrations/002_own_company_settings.sql` once in phpMyAdmin. Fresh installs receive this table from `database/schema.sql`.
+- Certificate PDFs read producer/contact/signature fields from this profile.
+- Policy entry will use a dynamic Add Insurer UI backed by the existing Insurer A-F columns.
