@@ -88,7 +88,16 @@ final class CertificatePdf
             $insurers[] = ['name' => $name, 'naic' => $naic];
         }
 
-        $agency = trim((string)($mailConfig['agency_name'] ?? $policy['broker_name'] ?? $mailConfig['from_name'] ?? ''));
+        $agency = trim((string)($mailConfig['company_name'] ?? ''));
+        if ($agency === '') $agency = trim((string)($mailConfig['agency_name'] ?? $policy['broker_name'] ?? $mailConfig['from_name'] ?? ''));
+        $agencyAddress = trim((string)($mailConfig['company_address'] ?? ''));
+        $signatureName = trim((string)($mailConfig['authorized_signature_name'] ?? ''));
+        $signatureFile = trim((string)($mailConfig['authorized_signature_file'] ?? ''));
+        $signaturePath = '';
+        if (preg_match('/^[a-f0-9]{32}\.(?:png|jpg)$/', $signatureFile)) {
+            $candidate = APP_ROOT . '/storage/private/company-signatures/' . $signatureFile;
+            if (is_file($candidate) && is_readable($candidate)) $signaturePath = $candidate;
+        }
         // The broker entered on the customer form is also the certificate holder.
         $holderText = trim((string)($holder['broker_name'] ?? $holder['certificate_holder_name'] ?? ''));
         $holderAddress = trim((string)($holder['broker_address'] ?? $holder['certificate_holder_address'] ?? ''));
@@ -97,9 +106,10 @@ final class CertificatePdf
         $data = [
             'certificate_date' => date('m/d/Y'),
             'producer_name' => $agency,
-            'contact_name' => trim((string)($mailConfig['contact_name'] ?? '')),
-            'contact_phone' => trim((string)($mailConfig['contact_phone'] ?? '')),
-            'contact_email' => trim((string)($mailConfig['contact_email'] ?? $mailConfig['from_email'] ?? '')),
+            'producer_address' => $agencyAddress,
+            'contact_name' => trim((string)($mailConfig['contact_person'] ?? $mailConfig['contact_name'] ?? '')),
+            'contact_phone' => trim((string)($mailConfig['phone_number'] ?? $mailConfig['contact_phone'] ?? '')),
+            'contact_email' => trim((string)($mailConfig['email_address'] ?? $mailConfig['contact_email'] ?? $mailConfig['from_email'] ?? '')),
             'insured_name' => trim((string)($insured['legal_name'] ?? '')),
             'insured_address' => $insuredAddress,
             'insurers' => $insurers,
@@ -111,7 +121,7 @@ final class CertificatePdf
             'combined_single_limit' => self::findCoverageValue($coverage, ['combined_single_limit', 'combined_single', 'combined_single_limit_each_accident']),
             'operations' => $vehicleLines ? "Scheduled autos:\n" . implode("\n", $vehicleLines) : '',
             'certificate_holder' => $holderText,
-            'authorized_rep' => '',
+            'authorized_rep' => $signatureName,
         ];
 
         $pdf = new Fpdi();
@@ -126,7 +136,8 @@ final class CertificatePdf
             if ($n !== 1) continue;
 
             self::draw($pdf,$data['certificate_date'],184.0,13.2,27.0,4.0,6.5,1);
-            self::draw($pdf,$data['producer_name'],7.8,46.5,96.0,5.0,7.0,1);
+            self::draw($pdf,$data['producer_name'],7.8,46.5,96.0,4.0,7.0,1);
+            self::draw($pdf,$data['producer_address'],7.8,50.3,96.0,11.0,6.0,3);
             self::draw($pdf,$data['contact_name'],123.0,44.5,64.0,3.5,6.5,1);
             self::draw($pdf,$data['contact_phone'],123.0,48.0,38.0,3.5,6.2,1);
             self::draw($pdf,$data['contact_email'],123.0,52.3,65.0,3.5,6.0,1);
@@ -145,6 +156,10 @@ final class CertificatePdf
             self::draw($pdf,$data['combined_single_limit'],182.8,136.2,23.0,4.0,6.2,1);
             self::draw($pdf,$data['operations'],7.8,203.3,196.0,17.0,7.0,4);
             self::draw($pdf,$data['certificate_holder'],7.8,233.5,98.0,22.0,7.0,5);
+            if ($signaturePath !== '') {
+                // Only a validated filename from the private main-admin signature folder is used.
+                $pdf->Image($signaturePath, 145.0, 248.0, 42.0, 7.0);
+            }
             self::draw($pdf,$data['authorized_rep'],109.5,254.0,96.0,5.0,6.5,1);
         }
 

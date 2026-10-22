@@ -349,12 +349,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['certificate_action'])
             throw new \RuntimeException('Could not create private certificate storage. Check folder permissions.');
         }
         $outputPath = $storageDirectory . '/' . $fileId . '.pdf';
+        $mailConfig = configFile('mail');
+        $companySettings = db()->query('SELECT * FROM own_company_settings WHERE id = 1')->fetch() ?: [];
+        $certificateConfig = array_merge($mailConfig, [
+            'company_name' => (string)($companySettings['company_name'] ?? ''),
+            'company_address' => (string)($companySettings['company_address'] ?? ''),
+            'contact_person' => (string)($companySettings['contact_person'] ?? ''),
+            'phone_number' => (string)($companySettings['phone_number'] ?? ''),
+            'email_address' => (string)($companySettings['email_address'] ?? ''),
+            'authorized_signature_name' => (string)($companySettings['authorized_signature_name'] ?? ''),
+            'authorized_signature_file' => (string)($companySettings['authorized_signature_file'] ?? ''),
+        ]);
         CertificatePdf::generate(
             $selectedPolicy,
             $insured,
             $selectedVehicles,
             $certificateForm,
-            configFile('mail'),
+            $certificateConfig,
             $outputPath
         );
         $_SESSION['certificate_files'][$fileId] = [
