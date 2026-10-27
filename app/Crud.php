@@ -49,7 +49,7 @@ final class Crud {
    }
    if(array_key_exists('coverage_options_present',$input)) {
     $allowedOptions=[
-     'commercial_general_liability'=>['claims_made','occur','aggregate_policy','aggregate_project','aggregate_location','aggregate_other'],
+     'commercial_general_liability'=>['claims_made','occur','aggregate_policy','aggregate_project','aggregate_location'],
      'automobile_liability'=>['any_auto','all_owned_autos','hired_autos','scheduled_autos','non_owned_autos'],
      'umbrella_liability'=>['occur','claims_made','deductible','retention'],
      'excess_liability'=>['occur','claims_made','deductible','retention'],
@@ -59,6 +59,7 @@ final class Crud {
     $cleanOptions=[];
     foreach($allowedOptions as $group=>$allowed) {
      $rawGroup=is_array($rawOptions[$group]??null)?array_map('strval',$rawOptions[$group]):[];
+     if(!in_array($group,$coverage['insurance_types']??[],true)) $rawGroup=[];
      $cleanOptions[$group]=array_values(array_unique(array_intersect($allowed,$rawGroup)));
     }
     $coverage['coverage_options']=$cleanOptions;
@@ -98,7 +99,7 @@ final class Crud {
    ];
    $coverage['types_of_insurance_summary']=implode(', ',array_map(static fn(string $type):string=>$typeLabels[$type]??$type,$coverage['insurance_types']??[]));
    $optionLabels=[
-    'claims_made'=>'Claims-Made','occur'=>'Occur','aggregate_policy'=>'Aggregate: Policy','aggregate_project'=>'Aggregate: Project','aggregate_location'=>'Aggregate: Location','aggregate_other'=>'Aggregate: Other',
+    'claims_made'=>'Claims-Made','occur'=>'Occur','aggregate_policy'=>'Aggregate: Policy','aggregate_project'=>'Aggregate: Project','aggregate_location'=>'Aggregate: Location',
     'any_auto'=>'Any Auto','all_owned_autos'=>'All Owned Autos','hired_autos'=>'Hired Autos','scheduled_autos'=>'Scheduled Autos','non_owned_autos'=>'Non-Owned Autos',
     'deductible'=>'Deductible','retention'=>'Retention','per_statute'=>'Per Statute','other'=>'Other','excluded_yes'=>'Officer Excluded: Yes','excluded_no'=>'Officer Excluded: No','excluded_na'=>'Officer Excluded: N/A'
    ];
