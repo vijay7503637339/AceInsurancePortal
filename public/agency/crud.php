@@ -123,7 +123,7 @@ $formUrl=$listUrl.'&action='.$action.($id!==null?'&id='.(int)$id:'');
  $deductibleRetentionAmount=array_key_exists('deductible_retention_amount_present',$editing)?(string)($editing['deductible_retention_amount']??''):(string)($policyCoverage['deductible_retention_amount']??'');
  $workersCompExcluded=array_key_exists('workers_compensation_excluded_present',$editing)?(string)($editing['workers_compensation_excluded']??''):(string)($policyCoverage['workers_compensation_excluded']??'');
  $optionLabels=[
-  'commercial_general_liability'=>['claims_made'=>'Claims-Made','occur'=>'Occur','aggregate_policy'=>'Policy','aggregate_project'=>'Project','aggregate_location'=>'Location','aggregate_other'=>'Other'],
+  'commercial_general_liability'=>['claims_made'=>'Claims-Made','occur'=>'Occur','aggregate_policy'=>'Policy','aggregate_project'=>'Project','aggregate_location'=>'Location'],
   'automobile_liability'=>['any_auto'=>'Any Auto','all_owned_autos'=>'All Owned Autos','hired_autos'=>'Hired Autos','scheduled_autos'=>'Scheduled Autos','non_owned_autos'=>'Non-Owned Autos'],
   'umbrella_liability'=>['occur'=>'Occur','claims_made'=>'Claims-Made','deductible'=>'Deductible','retention'=>'Retention'],
   'excess_liability'=>['occur'=>'Occur','claims_made'=>'Claims-Made','deductible'=>'Deductible','retention'=>'Retention'],
@@ -199,9 +199,8 @@ $formUrl=$listUrl.'&action='.$action.($id!==null?'&id='.(int)$id:'');
   card.classList.toggle('is-selected',selected);
   card.querySelectorAll('[data-insurer-select]').forEach(input=>{input.disabled=!selected;});
   card.querySelectorAll('[data-coverage-option]').forEach(input=>{input.disabled=!selected;});
-  const otherAggregate=card.querySelector('input[data-coverage-option="aggregate_other"]');
   const aggregateText=card.querySelector('input[name="aggregate_other_description"]');
-  if(aggregateText)aggregateText.disabled=!selected||!otherAggregate.checked;
+  if(aggregateText)aggregateText.disabled=!selected;
   const deductible=card.querySelector('input[data-coverage-option="deductible"]');
   const retention=card.querySelector('input[data-coverage-option="retention"]');
   const amount=card.querySelector('input[name="deductible_retention_amount"]');
