@@ -26,12 +26,31 @@ function customerMoney(mixed $value): string {
 }
 function coveragePairs(array $source, string $prefix = ''): array {
     $pairs = [];
+    $technicalKeys = ['insurance_types', 'insurance_carriers', 'coverage_options'];
+    $friendlyLabels = [
+        'types_of_insurance_summary' => 'Types of Insurance',
+        'coverage_options_summary' => 'Coverage Options',
+        'combined_single_limit' => 'Combined Single Limit',
+        'deductible_retention_amount' => 'Deductible / Retention Amount',
+        'aggregate_other_description' => 'General Aggregate Other',
+        'workers_compensation_other_text' => 'Workers Compensation Other',
+        'workers_compensation_excluded' => "Proprietor / Executive Officer Excluded",
+    ];
     foreach ($source as $key => $value) {
-        $label = trim($prefix . ' ' . ucwords(str_replace(['_', '-'], ' ', (string)$key)));
+        $key = (string)$key;
+        if (in_array($key, $technicalKeys, true)) continue;
+        $label = trim($prefix . ' ' . ($friendlyLabels[$key] ?? ucwords(str_replace(['_', '-'], ' ', $key))));
         if (is_array($value)) {
             $pairs = array_merge($pairs, coveragePairs($value, $label));
         } elseif (is_scalar($value) && (string)$value !== '') {
-            $pairs[] = [$label, (string)$value];
+            $displayValue = (string)$value;
+            if ($key === 'combined_single_limit' && is_numeric($displayValue)) {
+                $decimals = str_contains($displayValue, '.') ? 2 : 0;
+                $displayValue = number_format((float)$displayValue, $decimals, '.', ',');
+            } elseif ($key === 'workers_compensation_excluded') {
+                $displayValue = ['yes' => 'Yes', 'no' => 'No', 'na' => 'N/A'][$displayValue] ?? $displayValue;
+            }
+            $pairs[] = [$label, $displayValue];
         }
     }
     return $pairs;
