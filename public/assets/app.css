@@ -43,3 +43,167 @@
 @media(max-width:1200px){.dashboard-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:760px){.dashboard-main{padding:16px}.dashboard-welcome{align-items:flex-start;flex-direction:column;padding:21px}.dashboard-welcome h1{font-size:23px}.dashboard-work-grid,.dashboard-record-grid{grid-template-columns:1fr}.dashboard-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.dashboard-stat{padding:13px}.dashboard-stat strong{font-size:24px}.dashboard-welcome-actions{width:100%}.dashboard-welcome-actions .btn{flex:1}.dashboard-work-card{padding:17px}}
 @media(max-width:430px){.dashboard-stats{grid-template-columns:1fr 1fr;gap:8px}.dashboard-stat{padding:11px}.dashboard-stat-icon{width:30px;height:30px}.dashboard-stat-label{font-size:11px}.dashboard-stat strong{font-size:22px}}
+
+
+/* Agency sidebar refresh — refined navy navigation */
+.layout > .sidebar{
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+  width:264px;
+  min-height:calc(100vh - 72px);
+  padding:22px 14px 16px;
+  overflow:visible;
+  background:
+    radial-gradient(ellipse at 0% 0%,rgba(75,112,165,.22),transparent 42%),
+    linear-gradient(165deg,#142744 0%,#0e1c31 72%,#101f35 100%);
+  border-right:1px solid #243955;
+  box-shadow:8px 0 26px rgba(16,35,61,.07);
+}
+.layout > .sidebar::before{
+  content:"NAVIGATION";
+  display:block;
+  padding:2px 12px 13px;
+  margin:0 0 7px;
+  color:#8ea3c0;
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:.17em;
+}
+.layout > .sidebar::after{
+  content:"ACE INSURANCE  ·  SECURE WORKSPACE";
+  display:block;
+  margin-top:auto;
+  padding:24px 8px 5px;
+  color:#7488a5;
+  font-size:9px;
+  font-weight:750;
+  letter-spacing:.075em;
+  line-height:1.7;
+}
+.layout > .sidebar a{
+  position:relative;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  min-height:48px;
+  margin:0;
+  padding:7px 11px;
+  overflow:hidden;
+  border:1px solid transparent;
+  border-radius:11px;
+  color:#bfccdf;
+  font-size:12px;
+  font-weight:650;
+  line-height:1.4;
+  text-decoration:none;
+  white-space:normal;
+  transition:background .18s ease,color .18s ease,border-color .18s ease,transform .18s ease,box-shadow .18s ease;
+}
+.layout > .sidebar a::before{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  flex:0 0 32px;
+  width:32px;
+  height:32px;
+  border:1px solid rgba(194,211,237,.1);
+  border-radius:9px;
+  background:rgba(195,214,244,.075);
+  color:#b2c4df;
+  font-size:16px;
+  font-weight:700;
+  line-height:1;
+  content:"•";
+  transition:background .18s ease,color .18s ease,border-color .18s ease,transform .18s ease;
+}
+.layout > .sidebar a[href*="/agency/index.php"]::before{content:"⌂"}
+.layout > .sidebar a[href*="/agency/finance.php"]::before{content:"▤"}
+.layout > .sidebar a[href*="/agency/claims.php"]::before{content:"◈"}
+.layout > .sidebar a[href*="entity=insureds"]::before{content:"♙"}
+.layout > .sidebar a[href*="entity=vehicles"]::before{content:"▣"}
+.layout > .sidebar a[href*="entity=policies"]::before{content:"▱"}
+.layout > .sidebar a[href*="entity=drivers"]::before{content:"♧"}
+.layout > .sidebar a[href*="/agency/own-company.php"]::before{content:"⚙"}
+.layout > .sidebar a[href*="/agency/staff.php"]::before{content:"♟"}
+.layout > .sidebar a[href*="/agency/audit-logs.php"]::before{content:"≡"}
+.layout > .sidebar a[href*="/agency/own-company.php"]{margin-top:15px}
+.layout > .sidebar a[href*="/agency/own-company.php"]::after{
+  content:"";
+  position:absolute;
+  top:-9px;
+  left:2px;
+  right:2px;
+  height:1px;
+  background:rgba(171,195,227,.16);
+}
+.layout > .sidebar a:hover{
+  color:#fff;
+  background:rgba(176,202,240,.09);
+  border-color:rgba(176,202,240,.1);
+  transform:translateX(2px);
+}
+.layout > .sidebar a:hover::before{
+  color:#fff;
+  background:rgba(125,164,222,.2);
+  border-color:rgba(175,203,243,.18);
+}
+.layout > .sidebar a.selected{
+  color:#fff;
+  background:linear-gradient(110deg,rgba(76,111,164,.47),rgba(49,74,111,.38));
+  border-color:rgba(164,194,237,.19);
+  box-shadow:inset 3px 0 #a8c6ff,0 7px 20px rgba(3,12,25,.13);
+}
+.layout > .sidebar a.selected::before{
+  color:#192d4c;
+  background:linear-gradient(145deg,#f1f6ff,#cadcf8);
+  border-color:rgba(255,255,255,.55);
+  box-shadow:0 3px 8px rgba(0,0,0,.12);
+}
+.layout > .sidebar a:focus-visible{
+  outline:2px solid #a8c6ff;
+  outline-offset:2px;
+}
+@media(max-width:1000px){
+  .layout > .sidebar{
+    display:flex;
+    flex-direction:row;
+    align-items:center;
+    gap:6px;
+    width:100%;
+    min-height:0;
+    padding:10px 12px;
+    overflow-x:auto;
+    overflow-y:hidden;
+    border-right:0;
+    border-bottom:1px solid #243955;
+    box-shadow:0 6px 18px rgba(16,35,61,.08);
+    scrollbar-width:thin;
+    scrollbar-color:#536985 #142744;
+  }
+  .layout > .sidebar::before,
+  .layout > .sidebar::after,
+  .layout > .sidebar a[href*="/agency/own-company.php"]::after{display:none}
+  .layout > .sidebar a{
+    flex:0 0 auto;
+    gap:8px;
+    min-height:42px;
+    padding:5px 10px;
+    white-space:nowrap;
+    font-size:12px;
+  }
+  .layout > .sidebar a::before{
+    flex-basis:28px;
+    width:28px;
+    height:28px;
+    border-radius:8px;
+    font-size:14px;
+  }
+  .layout > .sidebar a[href*="/agency/own-company.php"]{margin-top:0}
+  .layout > .sidebar a:hover{transform:translateY(-1px)}
+}
+@media(max-width:620px){
+  .layout > .sidebar{padding:8px;gap:5px}
+  .layout > .sidebar a{min-height:40px;padding:5px 9px}
+}
