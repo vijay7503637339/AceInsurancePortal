@@ -53,3 +53,11 @@ PHP 8.1+ and MySQL foundation for an insurance portal with separate Customer Log
 - Includes listing, search/status filter, add/edit/delete actions, audit logging, client and optional policy association.
 - Dropdown choices match the `04 Finance Billing` workbook sheet: Status, Coverage / Policy Type, Finance Company, Autopay and Payment Method.
 - Existing database: run `database/migrations/003_finance_billing.sql` once in phpMyAdmin. Fresh installs receive the table from `database/schema.sql`.
+
+
+## Claim Master module
+- Admin and staff can access Claims Management.
+- List-first flow includes search, Status/Coverage/Claim Side filters, Add/Edit/Delete, assigned team member and audit logging.
+- Dropdown choices are sourced from the uploaded workbook's `02 CLAIM MASTER` sheet.
+- Existing database: run `database/migrations/004_claim_master_fields.sql` once in phpMyAdmin. Fresh installs receive the expanded claims table through `database/schema.sql`.
+- Loss Date maps to existing `incident_date`; Reported Date maps to `claim_date`; Coverage mirrors to legacy `claim_type`; Accident/Loss Summary mirrors to legacy `description`.
