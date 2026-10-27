@@ -23,7 +23,96 @@ final class Crud {
    $data[$field]=$v;
   }
   // Keep carrier_name synchronized for legacy pages/data integrations; Insurer A is the primary carrier.
-  if($key==='policies') $data['carrier_name']=$data['insurer_a_name']??null;
+  if($key==='policies') {
+   $data['carrier_name']=$data['insurer_a_name']??null;
+   $coverage=[];
+   if($id!==null) {
+    $existing=self::find($key,$id);
+    if($existing&&is_string($existing['coverage_data']??null)&&$existing['coverage_data']!=='') {
+     $decoded=json_decode((string)$existing['coverage_data'],true);
+     if(is_array($decoded)) $coverage=$decoded;
+    }
+   }
+   if(array_key_exists('insurance_types_present',$input)) {
+    $allowedTypes=['commercial_general_liability','automobile_liability','umbrella_liability','excess_liability','workers_compensation_employers_liability'];
+    $rawTypes=is_array($input['insurance_types']??null)?array_map('strval',$input['insurance_types']):[];
+    $types=array_values(array_unique(array_intersect($allowedTypes,$rawTypes)));
+    $coverage['insurance_types']=$types;
+
+    $rawCarriers=is_array($input['insurance_carriers']??null)?$input['insurance_carriers']:[];
+    $carriers=[];
+    foreach($types as $type) {
+     $letter=strtoupper(trim((string)($rawCarriers[$type]??'A')));
+     $carriers[$type]=in_array($letter,['A','B','C','D','E','F'],true)?$letter:'A';
+    }
+    $coverage['insurance_carriers']=$carriers;
+   }
+   if(array_key_exists('coverage_options_present',$input)) {
+    $allowedOptions=[
+     'commercial_general_liability'=>['claims_made','occur','aggregate_policy','aggregate_project','aggregate_location','aggregate_other'],
+     'automobile_liability'=>['any_auto','all_owned_autos','hired_autos','scheduled_autos','non_owned_autos'],
+     'umbrella_liability'=>['occur','claims_made','deductible','retention'],
+     'excess_liability'=>['occur','claims_made','deductible','retention'],
+     'workers_compensation_employers_liability'=>['per_statute','other','excluded_yes','excluded_no','excluded_na']
+    ];
+    $rawOptions=is_array($input['coverage_options']??null)?$input['coverage_options']:[];
+    $cleanOptions=[];
+    foreach($allowedOptions as $group=>$allowed) {
+     $rawGroup=is_array($rawOptions[$group]??null)?array_map('strval',$rawOptions[$group]):[];
+     $cleanOptions[$group]=array_values(array_unique(array_intersect($allowed,$rawGroup)));
+    }
+    $coverage['coverage_options']=$cleanOptions;
+   }
+   $textFields=[
+    'aggregate_other_description'=>['input'=>'aggregate_other_description','max'=>180],
+    'workers_compensation_other_text'=>['input'=>'workers_compensation_other_text','max'=>180],
+    'deductible_retention_amount'=>['input'=>'deductible_retention_amount','max'=>30]
+   ];
+   foreach($textFields as $coverageKey=>$meta) {
+    $presentKey=$meta['input'].'_present';
+    if(array_key_exists($presentKey,$input)) {
+     $value=trim((string)($input[$meta['input']]??''));
+     $coverage[$coverageKey]=$value===''?'':mb_substr($value,0,$meta['max']);
+    }
+   }
+   if(array_key_exists('combined_single_limit_present',$input)) {
+    $rawLimit=trim((string)($input['combined_single_limit']??''));
+    $normalized=preg_replace('/[,$\\s]/','',$rawLimit)??'';
+    if($normalized!==''&&!preg_match('/^\\d{1,12}(?:\\.\\d{1,2})?$/',$normalized)) {
+     throw new \\InvalidArgumentException('Combined Single Limit must be a valid amount, for example 1000000 or 1000000.00.');
+    }
+    $coverage['combined_single_limit']=$normalized;
+   }
+
+   $typeLabels=[
+    'commercial_general_liability'=>'Commercial General Liability',
+    'automobile_liability'=>'Automobile Liability',
+    'umbrella_liability'=>'Umbrella Liability',
+    'excess_liability'=>'Excess Liability',
+    'workers_compensation_employers_liability'=>\"Workers Compensation and Employers' Liability\"
+   ];
+   $coverage['types_of_insurance_summary']=implode(', ',array_map(static fn(string $type):string=>$typeLabels[$type]??$type,$coverage['insurance_types']??[]));
+   $optionLabels=[
+    'claims_made'=>'Claims-Made','occur'=>'Occur','aggregate_policy'=>'Aggregate: Policy','aggregate_project'=>'Aggregate: Project','aggregate_location'=>'Aggregate: Location','aggregate_other'=>'Aggregate: Other',
+    'any_auto'=>'Any Auto','all_owned_autos'=>'All Owned Autos','hired_autos'=>'Hired Autos','scheduled_autos'=>'Scheduled Autos','non_owned_autos'=>'Non-Owned Autos',
+    'deductible'=>'Deductible','retention'=>'Retention','per_statute'=>'Per Statute','other'=>'Other','excluded_yes'=>'Officer Excluded: Yes','excluded_no'=>'Officer Excluded: No','excluded_na'=>'Officer Excluded: N/A'
+   ];
+   $optionGroupLabels=[
+    'commercial_general_liability'=>'Commercial General Liability',
+    'automobile_liability'=>'Automobile Liability',
+    'umbrella_liability'=>'Umbrella Liability',
+    'excess_liability'=>'Excess Liability',
+    'workers_compensation_employers_liability'=>\"Workers Compensation and Employers' Liability\"
+   ];
+   $summary=[];
+   foreach(($coverage['coverage_options']??[]) as $group=>$selectedOptions) {
+    $labels=[];
+    foreach((array)$selectedOptions as $option) if(isset($optionLabels[$option])) $labels[]=$optionLabels[$option];
+    if($labels) $summary[]=($optionGroupLabels[$group]??$group).': '.implode(', ',$labels);
+   }
+   $coverage['coverage_options_summary']=implode('; ',$summary);
+   $data['coverage_data']=json_encode($coverage,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR);
+  }
   $table=$e['table'];
   if($id!==null) {
    if(!self::find($key,$id)) throw new \InvalidArgumentException('Record not found. Refresh the list and try again.');
