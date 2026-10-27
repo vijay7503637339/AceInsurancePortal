@@ -170,7 +170,7 @@ final class CertificatePdf
                 if (!in_array($typeKey, $insuranceTypes, true)) continue;
                 $letter = strtoupper(trim((string)($insuranceCarriers[$typeKey] ?? 'A')));
                 if (!in_array($letter, ['A','B','C','D','E','F'], true)) $letter = 'A';
-                self::draw($pdf, $letter, 8.0, $rowY, 5.0, 3.2, 5.7, 1);
+                self::draw($pdf, $letter, 1.8, $rowY, 4.2, 3.2, 5.7, 1);
             }
 
             // Mark only the options selected in the saved policy form.
