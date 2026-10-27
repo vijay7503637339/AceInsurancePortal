@@ -207,3 +207,34 @@
   .layout > .sidebar{padding:8px;gap:5px}
   .layout > .sidebar a{min-height:40px;padding:5px 9px}
 }
+
+/* Agency account password change page */
+.topbar>div:last-child{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  flex-wrap:wrap;
+  gap:9px;
+}
+.topbar>div:last-child .btn{margin-left:0}
+.topbar .topbar-account{width:auto;gap:10px}
+.topbar .topbar-user{color:#d9e4ff;font-size:12px;font-weight:650}
+.change-password-main{max-width:1180px}
+.change-password-panel{max-width:760px;padding:26px}
+.change-password-heading{display:flex;align-items:center;gap:14px;padding-bottom:21px;margin-bottom:22px;border-bottom:1px solid #e9eef6}
+.change-password-heading h2{margin:0 0 6px;font-size:18px}
+.change-password-heading p{margin:0;font-size:12px;line-height:1.6}
+.change-password-icon{display:flex;align-items:center;justify-content:center;flex:0 0 46px;width:46px;height:46px;border-radius:13px;background:#edf3fc;color:var(--blue);font-size:23px}
+.change-password-form{display:grid;grid-template-columns:minmax(0,1fr);gap:17px;max-width:540px}
+.change-password-form label{display:flex;flex-direction:column;gap:8px;font-weight:650}
+.change-password-form input{width:100%;padding:12px 13px;border:1px solid #cbd9ec;border-radius:8px;background:#fff;color:var(--text);font:inherit;transition:border-color .15s,box-shadow .15s}
+.change-password-form input:focus{outline:none;border-color:#647fa9;box-shadow:0 0 0 3px rgba(29,46,79,.1)}
+.change-password-help{color:var(--muted);font-size:12px;line-height:1.6;padding:2px 0}
+.change-password-form .form-actions{display:flex;flex-wrap:wrap;gap:10px;padding-top:3px}
+@media(max-width:620px){
+  .topbar>div:last-child{width:100%;justify-content:flex-start;gap:8px}
+  .topbar .topbar-user{flex-basis:100%}
+  .change-password-panel{padding:18px}
+  .change-password-heading{align-items:flex-start}
+  .change-password-form .form-actions .btn{flex:1}
+}
