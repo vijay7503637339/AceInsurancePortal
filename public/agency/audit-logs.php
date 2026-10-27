@@ -47,9 +47,37 @@ $countQuery = db()->prepare('SELECT COUNT(*)'.$fromWhere);
 $countQuery->execute($params);
 $matchedCount = (int)$countQuery->fetchColumn();
 
-$logQuery = db()->prepare('SELECT a.*, u.full_name AS actor_name'.$fromWhere.' ORDER BY a.id DESC LIMIT 300');
+// Server-side pagination keeps each request lightweight even when the log table grows.
+$perPage = 50;
+$requestedPage = filter_var($_GET['page'] ?? '1', FILTER_VALIDATE_INT);
+$page = ($requestedPage !== false && $requestedPage !== null && $requestedPage > 0) ? $requestedPage : 1;
+$totalPages = max(1, (int)ceil($matchedCount / $perPage));
+$page = min($page, $totalPages);
+$offset = ($page - 1) * $perPage;
+
+$logQuery = db()->prepare('SELECT a.*, u.full_name AS actor_name'.$fromWhere.' ORDER BY a.id DESC LIMIT '.$perPage.' OFFSET '.$offset);
 $logQuery->execute($params);
 $logs = $logQuery->fetchAll();
+
+$rangeStart = $matchedCount === 0 ? 0 : $offset + 1;
+$rangeEnd = min($offset + count($logs), $matchedCount);
+
+$paginationFilters = [];
+foreach (['actor' => $actorFilter, 'role' => $roleFilter, 'action' => $actionFilter, 'entity' => $entityFilter] as $filterName => $filterValue) {
+    if ($filterValue !== '') {
+        $paginationFilters[$filterName] = $filterValue;
+    }
+}
+
+if ($totalPages <= 7) {
+    $pageItems = range(1, $totalPages);
+} elseif ($page <= 4) {
+    $pageItems = [1, 2, 3, 4, 5, 'ellipsis', $totalPages];
+} elseif ($page >= $totalPages - 3) {
+    $pageItems = [1, 'ellipsis', $totalPages - 4, $totalPages - 3, $totalPages - 2, $totalPages - 1, $totalPages];
+} else {
+    $pageItems = [1, 'ellipsis', $page - 1, $page, $page + 1, 'ellipsis', $totalPages];
+}
 
 $roles = db()->query("SELECT DISTINCT NULLIF(actor_role, '') AS actor_role FROM audit_logs ORDER BY actor_role")->fetchAll(PDO::FETCH_COLUMN);
 $actions = db()->query('SELECT DISTINCT action FROM audit_logs ORDER BY action')->fetchAll(PDO::FETCH_COLUMN);
@@ -140,7 +168,7 @@ $actorOptions = db()->query(
           </label>
         </div>
         <div class="audit-filter-footer">
-          <span class="muted audit-result-count">Showing <?=count($logs)?> of <?=number_format($matchedCount)?> matching logs<?=$matchedCount > 300 ? ' · Latest 300 displayed' : ''?></span>
+          <span class="muted audit-result-count">Showing <?=number_format($rangeStart)?>–<?=number_format($rangeEnd)?> of <?=number_format($matchedCount)?> matching logs · <?=number_format($perPage)?> per page</span>
           <div class="audit-filter-actions">
             <a class="btn light" href="<?=e(appUrl('/agency/audit-logs.php'))?>">Reset</a>
             <button class="btn primary" type="submit">Apply Filters</button>
@@ -169,6 +197,21 @@ $actorOptions = db()->query(
           </tbody>
         </table>
       </div>
+      <?php if ($totalPages > 1): ?>
+        <nav class="audit-pagination" aria-label="Activity log pages">
+          <a class="audit-page-link <?=$page <= 1 ? 'is-disabled' : ''?>" href="<?=e(appUrl('/agency/audit-logs.php?'.http_build_query(array_merge($paginationFilters, ['page' => max(1, $page - 1)]))))?>" <?=$page <= 1 ? 'aria-disabled="true" tabindex="-1"' : ''?>>Previous</a>
+          <div class="audit-page-numbers">
+            <?php foreach ($pageItems as $pageItem): ?>
+              <?php if ($pageItem === 'ellipsis'): ?>
+                <span class="audit-page-ellipsis" aria-hidden="true">…</span>
+              <?php else: ?>
+                <a class="audit-page-link <?=$pageItem === $page ? 'is-current' : ''?>" href="<?=e(appUrl('/agency/audit-logs.php?'.http_build_query(array_merge($paginationFilters, ['page' => $pageItem]))))?>" <?=$pageItem === $page ? 'aria-current="page"' : ''?>><?=number_format((int)$pageItem)?></a>
+              <?php endif; ?>
+            <?php endforeach; ?>
+          </div>
+          <a class="audit-page-link <?=$page >= $totalPages ? 'is-disabled' : ''?>" href="<?=e(appUrl('/agency/audit-logs.php?'.http_build_query(array_merge($paginationFilters, ['page' => min($totalPages, $page + 1)]))))?>" <?=$page >= $totalPages ? 'aria-disabled="true" tabindex="-1"' : ''?>>Next</a>
+        </nav>
+      <?php endif; ?>
     </section>
   </main>
 </div>
