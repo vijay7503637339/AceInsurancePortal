@@ -22,7 +22,7 @@ $policies=db()->query('SELECT id,insured_id,policy_number,business_line FROM pol
 $money=static fn($v)=>$v===null||$v===''||!is_numeric($v)?'—':'$'.number_format((float)$v,2);
 $date=static function($v){if(!$v)return '—';$t=strtotime((string)$v);return $t===false?(string)$v:date('M j, Y',$t);};
 $companyLabel=static function(array $r){$c=(string)($r['finance_company']??'');$o=trim((string)($r['finance_company_other']??''));return $c==='Other / Direct Bill / New Finance Co.'&&$o!==''?$c.' — '.$o:$c;};
-$sel=static fn(string $f,string $v)=>(string)($form[$f]??'')===$v?'selected':'';
+$sel=static function(string $f,string $v) use (&$form):string{return (string)($form[$f]??'')===$v?'selected':'';};
 
 if($_SERVER['REQUEST_METHOD']==='POST'){
  verifyCsrf();$postAction=(string)($_POST['action']??'save');$rawId=trim((string)($_POST['id']??''));$id=$rawId!==''?filter_var($rawId,FILTER_VALIDATE_INT):null;
