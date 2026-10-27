@@ -77,14 +77,14 @@ final class Crud {
    }
    if(array_key_exists('workers_compensation_excluded_present',$input)) {
     $excluded=trim((string)($input['workers_compensation_excluded']??''));
-    if(!in_array($excluded,['','yes','no','na'],true)) throw new \\InvalidArgumentException('Invalid workers compensation exclusion option.');
+    if(!in_array($excluded,['','yes','no','na'],true)) throw new \InvalidArgumentException('Invalid workers compensation exclusion option.');
     $coverage['workers_compensation_excluded']=$excluded;
    }
    if(array_key_exists('combined_single_limit_present',$input)) {
     $rawLimit=trim((string)($input['combined_single_limit']??''));
     $normalized=preg_replace('/[,$\\s]/','',$rawLimit)??'';
     if($normalized!==''&&!preg_match('/^\\d{1,12}(?:\\.\\d{1,2})?$/',$normalized)) {
-     throw new \\InvalidArgumentException('Combined Single Limit must be a valid amount, for example 1000000 or 1000000.00.');
+     throw new \InvalidArgumentException('Combined Single Limit must be a valid amount, for example 1000000 or 1000000.00.');
     }
     $coverage['combined_single_limit']=$normalized;
    }
