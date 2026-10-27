@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($currentPassword === '' || $newPassword === '' || $confirmPassword === '') {
         $error = 'Please complete all password fields.';
-    } elseif (strlen($newPassword) < 12) {
+    } elseif (mb_strlen($newPassword) < 12) {
         $error = 'Your new password must contain at least 12 characters.';
     } elseif (!hash_equals($newPassword, $confirmPassword)) {
         $error = 'The new password and confirmation do not match.';
