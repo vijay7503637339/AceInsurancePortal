@@ -181,11 +181,11 @@ final class CertificatePdf
             self::markCheckbox($pdf, self::hasOption($coverageOptions, 'commercial_general_liability', 'aggregate_location'), 41.5, 126.8);
             self::draw($pdf, trim((string)($coverage['aggregate_other_description'] ?? '')), 13.0, 131.7, 41.0, 3.7, 5.4, 1);
 
-            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'automobile_liability', 'any_auto'), 9.5, 140.9);
-            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'automobile_liability', 'all_owned_autos'), 9.5, 146.1);
-            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'automobile_liability', 'hired_autos'), 9.5, 151.2);
-            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'automobile_liability', 'scheduled_autos'), 35.0, 146.1);
-            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'automobile_liability', 'non_owned_autos'), 35.0, 151.2);
+            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'automobile_liability', 'any_auto'), 15.5, 141.8);
+            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'automobile_liability', 'all_owned_autos'), 15.5, 146.2);
+            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'automobile_liability', 'hired_autos'), 15.5, 150.5);
+            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'automobile_liability', 'scheduled_autos'), 39.3, 146.2);
+            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'automobile_liability', 'non_owned_autos'), 39.3, 150.5);
 
             self::markCheckbox($pdf, self::hasOption($coverageOptions, 'umbrella_liability', 'occur'), 39.0, 158.8);
             self::markCheckbox($pdf, self::hasOption($coverageOptions, 'umbrella_liability', 'claims_made'), 39.0, 164.0);
