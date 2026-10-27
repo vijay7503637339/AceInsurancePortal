@@ -36,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             session_regenerate_id(true);
             try {
                 audit('password_change', 'user', (int)$user['id'], 'User changed their account password');
-            } catch (\\Throwable $e) {
+            } catch (\Throwable $e) {
                 error_log('Password changed but audit logging failed: '.$e->getMessage());
             }
             flash('success', 'Your password has been changed successfully.');
