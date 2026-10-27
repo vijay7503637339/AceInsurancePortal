@@ -46,3 +46,10 @@ PHP 8.1+ and MySQL foundation for an insurance portal with separate Customer Log
 - Existing database: run `database/migrations/002_own_company_settings.sql` once in phpMyAdmin. Fresh installs receive this table from `database/schema.sql`.
 - Certificate PDFs read producer/contact/signature fields from this profile.
 - Policy entry will use a dynamic Add Insurer UI backed by the existing Insurer A-F columns.
+
+
+## Finance Billing Manage
+- Admin and staff can manage Finance Billing entries from the agency sidebar.
+- Includes listing, search/status filter, add/edit/delete actions, audit logging, client and optional policy association.
+- Dropdown choices match the `04 Finance Billing` workbook sheet: Status, Coverage / Policy Type, Finance Company, Autopay and Payment Method.
+- Existing database: run `database/migrations/003_finance_billing.sql` once in phpMyAdmin. Fresh installs receive the table from `database/schema.sql`.
