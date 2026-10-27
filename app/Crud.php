@@ -94,7 +94,7 @@ final class Crud {
     'automobile_liability'=>'Automobile Liability',
     'umbrella_liability'=>'Umbrella Liability',
     'excess_liability'=>'Excess Liability',
-    'workers_compensation_employers_liability'=>\"Workers Compensation and Employers' Liability\"
+    'workers_compensation_employers_liability'=>"Workers Compensation and Employers' Liability"
    ];
    $coverage['types_of_insurance_summary']=implode(', ',array_map(static fn(string $type):string=>$typeLabels[$type]??$type,$coverage['insurance_types']??[]));
    $optionLabels=[
@@ -107,7 +107,7 @@ final class Crud {
     'automobile_liability'=>'Automobile Liability',
     'umbrella_liability'=>'Umbrella Liability',
     'excess_liability'=>'Excess Liability',
-    'workers_compensation_employers_liability'=>\"Workers Compensation and Employers' Liability\"
+    'workers_compensation_employers_liability'=>"Workers Compensation and Employers' Liability"
    ];
    $summary=[];
    foreach(($coverage['coverage_options']??[]) as $group=>$selectedOptions) {
