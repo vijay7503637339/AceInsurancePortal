@@ -91,6 +91,12 @@ final class CertificatePdf
             $insurers[] = ['name' => $name, 'naic' => $naic];
         }
 
+        if (array_key_exists('combined_single_limit', $coverage)) {
+            $combinedSingleLimit = trim((string)$coverage['combined_single_limit']);
+        } else {
+            $combinedSingleLimit = self::findCoverageValue($coverage, ['combined_single', 'combined_single_limit_each_accident']);
+        }
+
         $agency = trim((string)($mailConfig['company_name'] ?? ''));
         if ($agency === '') $agency = trim((string)($mailConfig['agency_name'] ?? $policy['broker_name'] ?? $mailConfig['from_name'] ?? ''));
         $agencyAddress = trim((string)($mailConfig['company_address'] ?? ''));
@@ -121,7 +127,7 @@ final class CertificatePdf
             'policy_number' => trim((string)($policy['policy_number'] ?? '')),
             'effective_date' => self::dateValue($policy['effective_date'] ?? null),
             'expiration_date' => self::dateValue($policy['expiration_date'] ?? null),
-            'combined_single_limit' => self::formatLimit(self::findCoverageValue($coverage, ['combined_single_limit', 'combined_single', 'combined_single_limit_each_accident'])),
+            'combined_single_limit' => self::formatLimit($combinedSingleLimit),
             'operations' => $vehicleLines ? "Scheduled autos:\n" . implode("\n", $vehicleLines) : '',
             'certificate_holder' => $holderText,
             'authorized_rep' => $signatureName,
