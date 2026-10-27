@@ -346,3 +346,7 @@
 @media(max-width:700px){.acord-coverage-manager{padding:13px}.acord-coverage-card{padding:12px}.acord-coverage-card-head{align-items:flex-start}.acord-coverage-heading{flex-direction:column}.acord-insurer-letter{flex-basis:80px}}
 
 .acord-shared-limit-note{margin:0;color:var(--muted);font-size:11px;line-height:1.6}
+
+/* Current client workflow displays Automobile Liability only. */
+.acord-coverage-cards-auto-only{grid-template-columns:minmax(0,1fr)}
+.acord-coverage-cards-auto-only .acord-coverage-card{max-width:100%}
