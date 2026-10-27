@@ -51,7 +51,7 @@ $logQuery = db()->prepare('SELECT a.*, u.full_name AS actor_name'.$fromWhere.' O
 $logQuery->execute($params);
 $logs = $logQuery->fetchAll();
 
-$roles = db()->query('SELECT DISTINCT NULLIF(actor_role, '') AS actor_role FROM audit_logs ORDER BY actor_role')->fetchAll(PDO::FETCH_COLUMN);
+$roles = db()->query("SELECT DISTINCT NULLIF(actor_role, '') AS actor_role FROM audit_logs ORDER BY actor_role")->fetchAll(PDO::FETCH_COLUMN);
 $actions = db()->query('SELECT DISTINCT action FROM audit_logs ORDER BY action')->fetchAll(PDO::FETCH_COLUMN);
 $entities = db()->query('SELECT DISTINCT entity_type FROM audit_logs ORDER BY entity_type')->fetchAll(PDO::FETCH_COLUMN);
 $actorOptions = db()->query(
