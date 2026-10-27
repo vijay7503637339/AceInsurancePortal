@@ -79,6 +79,7 @@ final class Crud {
    if(array_key_exists('workers_compensation_excluded_present',$input)) {
     $excluded=trim((string)($input['workers_compensation_excluded']??''));
     if(!in_array($excluded,['','yes','no','na'],true)) throw new \InvalidArgumentException('Invalid workers compensation exclusion option.');
+    if(!in_array('workers_compensation_employers_liability',$coverage['insurance_types']??[],true)) $excluded='';
     $coverage['workers_compensation_excluded']=$excluded;
    }
    if(array_key_exists('combined_single_limit_present',$input)) {
@@ -87,6 +88,7 @@ final class Crud {
     if($normalized!==''&&!preg_match('/^\\d{1,12}(?:\\.\\d{1,2})?$/',$normalized)) {
      throw new \InvalidArgumentException('Combined Single Limit must be a valid amount, for example 1000000 or 1000000.00.');
     }
+    if(!in_array('automobile_liability',$coverage['insurance_types']??[],true)) $normalized='';
     $coverage['combined_single_limit']=$normalized;
    }
 
