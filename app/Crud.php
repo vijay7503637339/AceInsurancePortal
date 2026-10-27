@@ -75,6 +75,11 @@ final class Crud {
      $coverage[$coverageKey]=$value===''?'':mb_substr($value,0,$meta['max']);
     }
    }
+   if(array_key_exists('workers_compensation_excluded_present',$input)) {
+    $excluded=trim((string)($input['workers_compensation_excluded']??''));
+    if(!in_array($excluded,['','yes','no','na'],true)) throw new \\InvalidArgumentException('Invalid workers compensation exclusion option.');
+    $coverage['workers_compensation_excluded']=$excluded;
+   }
    if(array_key_exists('combined_single_limit_present',$input)) {
     $rawLimit=trim((string)($input['combined_single_limit']??''));
     $normalized=preg_replace('/[,$\\s]/','',$rawLimit)??'';
