@@ -24,7 +24,7 @@ if ($actorFilter === 'system') {
     }
 }
 if ($roleFilter === '__system__') {
-    $conditions[] = 'a.actor_role IS NULL';
+    $conditions[] = "(a.actor_role IS NULL OR a.actor_role = '')";
 } elseif ($roleFilter !== '') {
     $conditions[] = 'a.actor_role = :role';
     $params['role'] = $roleFilter;
@@ -51,7 +51,7 @@ $logQuery = db()->prepare('SELECT a.*, u.full_name AS actor_name'.$fromWhere.' O
 $logQuery->execute($params);
 $logs = $logQuery->fetchAll();
 
-$roles = db()->query('SELECT DISTINCT actor_role FROM audit_logs ORDER BY actor_role')->fetchAll(PDO::FETCH_COLUMN);
+$roles = db()->query('SELECT DISTINCT NULLIF(actor_role, '') AS actor_role FROM audit_logs ORDER BY actor_role')->fetchAll(PDO::FETCH_COLUMN);
 $actions = db()->query('SELECT DISTINCT action FROM audit_logs ORDER BY action')->fetchAll(PDO::FETCH_COLUMN);
 $entities = db()->query('SELECT DISTINCT entity_type FROM audit_logs ORDER BY entity_type')->fetchAll(PDO::FETCH_COLUMN);
 $actorOptions = db()->query(
@@ -140,7 +140,7 @@ $actorOptions = db()->query(
           </label>
         </div>
         <div class="audit-filter-footer">
-          <span class="muted audit-result-count">Showing <?=count($logs)?> of <?=number_format($matchedCount)?> matching logs<?='';?><?=$matchedCount > 300 ? ' · Latest 300 displayed' : ''?></span>
+          <span class="muted audit-result-count">Showing <?=count($logs)?> of <?=number_format($matchedCount)?> matching logs<?=$matchedCount > 300 ? ' · Latest 300 displayed' : ''?></span>
           <div class="audit-filter-actions">
             <a class="btn light" href="<?=e(appUrl('/agency/audit-logs.php'))?>">Reset</a>
             <button class="btn primary" type="submit">Apply Filters</button>
