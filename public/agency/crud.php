@@ -169,10 +169,12 @@ $formUrl=$listUrl.'&action='.$action.($id!==null?'&id='.(int)$id:'');
      <span class="acord-money-input"><span>$</span><input type="text" inputmode="decimal" name="combined_single_limit" value="<?=e($combinedSingleLimit)?>" placeholder="e.g. 1000000" maxlength="20" aria-describedby="combined-limit-help"></span>
      <small id="combined-limit-help">Enter the Auto Liability limit. Commas and a leading $ are accepted.</small>
     </label>
-   <?php elseif($typeKey==='umbrella_liability'||$typeKey==='excess_liability'):?>
-    <label class="acord-extra-field">Deductible / Retention Amount
+   <?php elseif($typeKey==='umbrella_liability'):?>
+    <label class="acord-extra-field">Shared Deductible / Retention Amount (Umbrella / Excess)
      <input type="text" name="deductible_retention_amount" value="<?=e($deductibleRetentionAmount)?>" maxlength="30" placeholder="Amount, if applicable">
     </label>
+   <?php elseif($typeKey==='excess_liability'):?>
+    <p class="muted acord-shared-limit-note">Deductible / retention amount is entered once in the Umbrella Liability card above.</p>
    <?php elseif($typeKey==='workers_compensation_employers_liability'):?>
     <label class="acord-extra-field">Other description
      <input type="text" name="workers_compensation_other_text" value="<?=e($workersCompOtherText)?>" maxlength="180" placeholder="Describe other workers compensation coverage">
@@ -201,10 +203,6 @@ $formUrl=$listUrl.'&action='.$action.($id!==null?'&id='.(int)$id:'');
   card.querySelectorAll('[data-coverage-option]').forEach(input=>{input.disabled=!selected;});
   const aggregateText=card.querySelector('input[name="aggregate_other_description"]');
   if(aggregateText)aggregateText.disabled=!selected;
-  const deductible=card.querySelector('input[data-coverage-option="deductible"]');
-  const retention=card.querySelector('input[data-coverage-option="retention"]');
-  const amount=card.querySelector('input[name="deductible_retention_amount"]');
-  if(amount)amount.disabled=!selected||!(deductible.checked||retention.checked);
   const limitInput=card.querySelector('input[name="combined_single_limit"]');
   if(limitInput)limitInput.disabled=!selected;
   const otherWc=card.querySelector('input[data-coverage-option="other"]');
@@ -215,6 +213,13 @@ $formUrl=$listUrl.'&action='.$action.($id!==null?'&id='.(int)$id:'');
  function refresh(){
   const cards=Array.from(root.querySelectorAll('[data-coverage-card]'));
   cards.forEach(refreshCard);
+  const umbrellaCard=root.querySelector('[data-coverage-card="umbrella_liability"]');
+  const excessCard=root.querySelector('[data-coverage-card="excess_liability"]');
+  const umbrellaSelected=!!umbrellaCard?.querySelector('.acord-type-check input')?.checked;
+  const excessSelected=!!excessCard?.querySelector('.acord-type-check input')?.checked;
+  const deductibleOrRetention=!!root.querySelector('input[data-coverage-option="deductible"]:checked, input[data-coverage-option="retention"]:checked');
+  const sharedAmount=root.querySelector('input[name="deductible_retention_amount"]');
+  if(sharedAmount)sharedAmount.disabled=!(umbrellaSelected||excessSelected)||!deductibleOrRetention;
   count.textContent=cards.filter(card=>card.querySelector('.acord-type-check input').checked).length+' / 5';
  }
  root.querySelectorAll('.acord-type-check input,.acord-coverage-options input,.acord-excluded-options input').forEach(input=>input.addEventListener('change',refresh));
