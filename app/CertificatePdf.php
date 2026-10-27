@@ -91,12 +91,6 @@ final class CertificatePdf
             $insurers[] = ['name' => $name, 'naic' => $naic];
         }
 
-        if (array_key_exists('combined_single_limit', $coverage)) {
-            $combinedSingleLimit = trim((string)$coverage['combined_single_limit']);
-        } else {
-            $combinedSingleLimit = self::findCoverageValue($coverage, ['combined_single', 'combined_single_limit_each_accident']);
-        }
-
         $agency = trim((string)($mailConfig['company_name'] ?? ''));
         if ($agency === '') $agency = trim((string)($mailConfig['agency_name'] ?? $policy['broker_name'] ?? $mailConfig['from_name'] ?? ''));
         $agencyAddress = trim((string)($mailConfig['company_address'] ?? ''));
@@ -127,7 +121,7 @@ final class CertificatePdf
             'policy_number' => trim((string)($policy['policy_number'] ?? '')),
             'effective_date' => self::dateValue($policy['effective_date'] ?? null),
             'expiration_date' => self::dateValue($policy['expiration_date'] ?? null),
-            'combined_single_limit' => self::formatLimit($combinedSingleLimit),
+            'combined_single_limit' => self::formatLimit(array_key_exists('combined_single_limit', $coverage) ? trim((string)$coverage['combined_single_limit']) : self::findCoverageValue($coverage, ['combined_single', 'combined_single_limit_each_accident'])),
             'operations' => $vehicleLines ? "Scheduled autos:\n" . implode("\n", $vehicleLines) : '',
             'certificate_holder' => $holderText,
             'authorized_rep' => $signatureName,
@@ -179,7 +173,7 @@ final class CertificatePdf
                 self::draw($pdf, $letter, 8.0, $rowY, 5.0, 3.2, 5.7, 1);
             }
 
-            // Mark only the ACORD checkboxes chosen on the saved policy form.
+            // Mark only the options selected in the saved policy form.
             self::markCheckbox($pdf, self::hasOption($coverageOptions, 'commercial_general_liability', 'claims_made'), 15.5, 109.3);
             self::markCheckbox($pdf, self::hasOption($coverageOptions, 'commercial_general_liability', 'occur'), 39.0, 109.3);
             self::markCheckbox($pdf, self::hasOption($coverageOptions, 'commercial_general_liability', 'aggregate_policy'), 15.5, 126.8);
