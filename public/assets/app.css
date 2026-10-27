@@ -314,3 +314,33 @@
   .audit-page-numbers{order:-1;width:100%}
   .audit-page-link{min-width:34px;min-height:34px;padding:6px 8px}
 }
+
+
+/* ACORD 25 policy coverage fields */
+.acord-coverage-manager{grid-column:1/-1;display:flex;flex-direction:column;gap:15px;padding:19px;border:1px solid #dce6f4;border-radius:12px;background:#f7faff;min-width:0}
+.acord-coverage-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.acord-coverage-heading h3{margin:0 0 6px;color:#1d2e4f;font-size:17px}
+.acord-coverage-heading p{margin:0;max-width:780px;font-size:12px;line-height:1.6}
+.acord-coverage-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;min-width:0}
+.acord-coverage-card{display:flex;flex-direction:column;gap:13px;min-width:0;padding:15px;background:#fff;border:1px solid #dce5f1;border-radius:10px;transition:border-color .15s,box-shadow .15s,background .15s}
+.acord-coverage-card.is-selected{border-color:#8198ba;box-shadow:0 3px 12px rgba(29,46,79,.06);background:linear-gradient(180deg,#fff,#fbfdff)}
+.acord-coverage-card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0;padding-bottom:11px;border-bottom:1px solid #edf1f7}
+.crud-form .acord-type-check{display:flex;flex-direction:row;align-items:center;gap:9px;min-width:0;margin:0;color:#1d2e4f;font-size:13px;font-weight:750;line-height:1.4}
+.crud-form .acord-type-check input[type=checkbox]{flex:0 0 17px;width:17px;height:17px;margin:0;accent-color:#1d2e4f}
+.acord-insurer-letter{display:flex;flex-direction:column;gap:4px;flex:0 0 92px;color:#60718a;font-size:10px;font-weight:700}
+.acord-insurer-letter select{width:100%;min-height:31px;padding:5px 7px;border:1px solid #d1dceb;border-radius:6px;background:#fff;color:#1d2e4f;font:inherit;font-size:12px}
+.acord-coverage-options{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px}
+.crud-form .acord-option{display:inline-flex;flex-direction:row;align-items:center;gap:6px;min-width:0;margin:0;color:#455873;font-size:12px;font-weight:550;line-height:1.5}
+.crud-form .acord-option input[type=checkbox],.crud-form .acord-option input[type=radio]{flex:0 0 15px;width:15px;height:15px;margin:0;accent-color:#1d2e4f}
+.crud-form .acord-extra-field,.crud-form .acord-limit-field{display:flex;flex-direction:column;gap:6px;padding-top:2px;color:#536782;font-size:11px;font-weight:700}
+.crud-form .acord-extra-field input,.crud-form .acord-limit-field input{width:100%;min-width:0;box-sizing:border-box;min-height:37px;padding:9px 10px;border:1px solid #cbd9ec;border-radius:7px;background:#fff;color:var(--text);font:inherit;font-size:12px}
+.acord-limit-field small{color:var(--muted);font-size:10px;line-height:1.5;font-weight:500}
+.acord-money-input{display:flex;align-items:center;min-width:0;border:1px solid #cbd9ec;border-radius:7px;background:#fff;overflow:hidden}
+.acord-money-input>span{padding:0 11px;color:#566a87;background:#f0f4fa;font-size:13px;line-height:37px;border-right:1px solid #d7e1ee}
+.crud-form .acord-limit-field .acord-money-input input{border:0;border-radius:0;box-shadow:none;outline-offset:-2px}
+.crud-form .acord-coverage-card input:disabled,.acord-coverage-card select:disabled{opacity:.46;cursor:not-allowed;background:#f3f6fa}
+.acord-excluded-options{display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap;padding-top:8px;border-top:1px solid #edf1f7}
+.acord-excluded-options>span{flex-basis:100%;font-size:11px;font-weight:700;color:#536782;line-height:1.5}
+.acord-coverage-note{margin:0;font-size:11px;line-height:1.6}
+@media(max-width:850px){.acord-coverage-cards{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:700px){.acord-coverage-manager{padding:13px}.acord-coverage-card{padding:12px}.acord-coverage-card-head{align-items:flex-start}.acord-coverage-heading{flex-direction:column}.acord-insurer-letter{flex-basis:80px}}
