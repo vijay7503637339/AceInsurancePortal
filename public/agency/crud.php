@@ -205,6 +205,8 @@ $formUrl=$listUrl.'&action='.$action.($id!==null?'&id='.(int)$id:'');
   const retention=card.querySelector('input[data-coverage-option="retention"]');
   const amount=card.querySelector('input[name="deductible_retention_amount"]');
   if(amount)amount.disabled=!selected||!(deductible.checked||retention.checked);
+  const limitInput=card.querySelector('input[name="combined_single_limit"]');
+  if(limitInput)limitInput.disabled=!selected;
   const otherWc=card.querySelector('input[data-coverage-option="other"]');
   const wcText=card.querySelector('input[name="workers_compensation_other_text"]');
   if(wcText)wcText.disabled=!selected||!otherWc.checked;
