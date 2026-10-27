@@ -238,3 +238,64 @@
   .change-password-heading{align-items:flex-start}
   .change-password-form .form-actions .btn{flex:1}
 }
+
+
+/* Activity log filters */
+.audit-log-main{min-width:0}
+.audit-log-panel{padding:20px}
+.audit-filter-form{padding:0 0 18px;margin:0 0 18px;border-bottom:1px solid #e8eef6}
+.audit-filters-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.audit-filters-grid label{display:flex;flex-direction:column;gap:7px;min-width:0;color:#354763;font-size:12px;font-weight:750}
+.audit-filters-grid select{width:100%;min-width:0;min-height:42px;padding:10px 32px 10px 11px;border:1px solid #cfdae9;border-radius:8px;background:#fff;color:#243650;font:inherit;font-weight:550}
+.audit-filters-grid select:focus{outline:none;border-color:#7188ad;box-shadow:0 0 0 3px rgba(29,46,79,.1)}
+.audit-filter-footer{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:16px}
+.audit-result-count{font-size:12px;line-height:1.6}
+.audit-filter-actions{display:flex;align-items:center;justify-content:flex-end;gap:9px;flex-wrap:wrap}
+.audit-table-wrap{min-width:0}
+.audit-empty{text-align:center;padding:30px 12px}
+
+/* Keep agency navigation stationary while the main workspace scrolls. */
+@media(min-width:1001px){
+  .topbar + .layout{
+    height:calc(100vh - 72px);
+    min-height:0;
+    overflow:hidden;
+  }
+  .topbar + .layout > .sidebar{
+    position:relative;
+    top:auto;
+    height:calc(100vh - 72px);
+    min-height:0;
+    max-height:calc(100vh - 72px);
+    flex:0 0 264px;
+    overflow-x:hidden;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    scrollbar-width:thin;
+    scrollbar-color:#405877 #12243d;
+  }
+  .topbar + .layout > .main{
+    height:calc(100vh - 72px);
+    min-height:0;
+    overflow-x:hidden;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    scrollbar-gutter:stable;
+  }
+}
+@media(max-width:1000px){
+  .topbar + .layout > .sidebar{
+    position:sticky;
+    top:0;
+    z-index:20;
+    align-self:stretch;
+  }
+  .audit-filters-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:620px){
+  .audit-log-panel{padding:13px}
+  .audit-filters-grid{grid-template-columns:minmax(0,1fr);gap:12px}
+  .audit-filter-footer{align-items:flex-start;flex-direction:column}
+  .audit-filter-actions{width:100%;justify-content:stretch}
+  .audit-filter-actions .btn{flex:1;text-align:center}
+}
