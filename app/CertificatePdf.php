@@ -237,78 +237,7 @@ final class CertificatePdf
 
     private static function formatLimit(string $value): string
     {
-        $value = trim(str_replace(['
-        $wanted = array_map(static fn(string $k): string => self::normalKey($k), $keys);
-        foreach ($source as $key => $value) {
-            if (in_array(self::normalKey((string)$key), $wanted, true) && is_scalar($value)) return trim((string)$value);
-            if (is_array($value)) {
-                $result = self::findCoverageValue($value, $keys);
-                if ($result !== '') return $result;
-            }
-        }
-        return '';
-    }
-
-    private static function normalKey(string $key): string
-    {
-        return strtolower((string)preg_replace('/[^a-z0-9]/i', '', $key));
-    }
-
-    private static function dateValue(mixed $value): string
-    {
-        if (!$value) return '';
-        $time = strtotime((string)$value);
-        return $time === false ? '' : date('m/d/Y', $time);
-    }
-
-    private static function pdfText(string $text): string
-    {
-        $out = @iconv('UTF-8', 'Windows-1252//TRANSLIT//IGNORE', $text);
-        return $out === false ? '' : $out;
-    }
-
-    private static function sub(string $text, int $start, int $length): string
-    {
-        if (function_exists('mb_substr')) return mb_substr($text, $start, $length, 'UTF-8');
-        $out = iconv_substr($text, $start, $length, 'UTF-8');
-        return $out === false ? substr($text, $start, $length) : $out;
-    }
-
-    private static function draw(Fpdi $pdf, string $text, float $x, float $y, float $width, float $height, float $size = 7.0, int $maxLines = 2): void
-    {
-        if (trim($text) === '') return;
-        $pdf->SetFont('Helvetica', '', $size);
-        $pdf->SetTextColor(10, 10, 10);
-        $lines = [];
-        foreach (explode("\n", str_replace(["\r\n", "\r"], "\n", $text)) as $paragraph) {
-            $words = preg_split('/\s+/', trim($paragraph)) ?: [];
-            if (!$words || $words === ['']) { $lines[] = ''; continue; }
-            $line = '';
-            foreach ($words as $word) {
-                $candidate = $line === '' ? $word : $line . ' ' . $word;
-                if ($pdf->GetStringWidth(self::pdfText($candidate)) <= $width || $line === '') $line = $candidate;
-                else { $lines[] = $line; $line = $word; }
-            }
-            $lines[] = $line;
-        }
-        $lineHeight = max(3.0, $size * 0.45);
-        $allowed = min($maxLines, max(1, (int)floor($height / $lineHeight)));
-        if (count($lines) > $allowed) {
-            $lines = array_slice($lines, 0, $allowed);
-            $last = array_pop($lines) ?? '';
-            while ($last !== '' && $pdf->GetStringWidth(self::pdfText($last . '...')) > $width) {
-                $chars = function_exists('mb_strlen') ? mb_strlen($last, 'UTF-8') : (iconv_strlen($last, 'UTF-8') ?: strlen($last));
-                $last = self::sub($last, 0, max(0, $chars - 1));
-            }
-            $lines[] = rtrim($last) . '...';
-        }
-        foreach ($lines as $index => $line) {
-            $pdf->SetXY($x, $y + ($index * $lineHeight));
-            $pdf->Cell($width, $lineHeight, self::pdfText($line), 0, 0, 'L', false);
-        }
-    }
-}
-, ',', ' '], '', $value));
+        $value = trim(str_replace(['$', ',', ' '], '', $value));
         if ($value === '' || !is_numeric($value)) return $value;
         $decimals = str_contains($value, '.') ? 2 : 0;
         return number_format((float)$value, $decimals, '.', ',');
