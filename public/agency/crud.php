@@ -96,6 +96,131 @@ $formUrl=$listUrl.'&action='.$action.($id!==null?'&id='.(int)$id:'');
 })();
 </script>
 <?php endif; ?>
+<?php if($key==='policies'):
+ $policyCoverage=[];
+ $rawCoverage=$editing['coverage_data']??null;
+ if(is_string($rawCoverage)&&$rawCoverage!==''){$decodedCoverage=json_decode($rawCoverage,true);if(is_array($decodedCoverage))$policyCoverage=$decodedCoverage;}
+ $insuranceTypeKeys=['commercial_general_liability','automobile_liability','umbrella_liability','excess_liability','workers_compensation_employers_liability'];
+ $insuranceTypeLabels=[
+  'commercial_general_liability'=>'Commercial General Liability',
+  'automobile_liability'=>'Automobile Liability',
+  'umbrella_liability'=>'Umbrella Liability',
+  'excess_liability'=>'Excess Liability',
+  'workers_compensation_employers_liability'=>"Workers Compensation & Employers' Liability"
+ ];
+ $selectedInsuranceTypes=array_key_exists('insurance_types_present',$editing)
+  ? (is_array($editing['insurance_types']??null)?array_map('strval',$editing['insurance_types']):[])
+  : (is_array($policyCoverage['insurance_types']??null)?$policyCoverage['insurance_types']:[]);
+ $selectedCoverageOptions=array_key_exists('coverage_options_present',$editing)
+  ? (is_array($editing['coverage_options']??null)?$editing['coverage_options'] : [])
+  : (is_array($policyCoverage['coverage_options']??null)?$policyCoverage['coverage_options']:[]);
+ $selectedInsuranceCarriers=array_key_exists('insurance_types_present',$editing)
+  ? (is_array($editing['insurance_carriers']??null)?$editing['insurance_carriers']:[])
+  : (is_array($policyCoverage['insurance_carriers']??null)?$policyCoverage['insurance_carriers']:[]);
+ $combinedSingleLimit=array_key_exists('combined_single_limit_present',$editing)?(string)($editing['combined_single_limit']??''):(string)($policyCoverage['combined_single_limit']??'');
+ $aggregateOtherDescription=array_key_exists('aggregate_other_description_present',$editing)?(string)($editing['aggregate_other_description']??''):(string)($policyCoverage['aggregate_other_description']??'');
+ $workersCompOtherText=array_key_exists('workers_compensation_other_text_present',$editing)?(string)($editing['workers_compensation_other_text']??''):(string)($policyCoverage['workers_compensation_other_text']??'');
+ $deductibleRetentionAmount=array_key_exists('deductible_retention_amount_present',$editing)?(string)($editing['deductible_retention_amount']??''):(string)($policyCoverage['deductible_retention_amount']??'');
+ $workersCompExcluded=array_key_exists('workers_compensation_excluded_present',$editing)?(string)($editing['workers_compensation_excluded']??''):(string)($policyCoverage['workers_compensation_excluded']??'');
+ $optionLabels=[
+  'commercial_general_liability'=>['claims_made'=>'Claims-Made','occur'=>'Occur','aggregate_policy'=>'Policy','aggregate_project'=>'Project','aggregate_location'=>'Location','aggregate_other'=>'Other'],
+  'automobile_liability'=>['any_auto'=>'Any Auto','all_owned_autos'=>'All Owned Autos','hired_autos'=>'Hired Autos','scheduled_autos'=>'Scheduled Autos','non_owned_autos'=>'Non-Owned Autos'],
+  'umbrella_liability'=>['occur'=>'Occur','claims_made'=>'Claims-Made','deductible'=>'Deductible','retention'=>'Retention'],
+  'excess_liability'=>['occur'=>'Occur','claims_made'=>'Claims-Made','deductible'=>'Deductible','retention'=>'Retention'],
+  'workers_compensation_employers_liability'=>['per_statute'=>'Per Statute','other'=>'Other']
+ ];
+?>
+<div class="acord-coverage-manager">
+ <div class="acord-coverage-heading"><div><h3>ACORD 25 — Type of Insurance</h3><p class="muted">Select the coverages that apply to this policy. These selections and limits will be used to fill the Certificate of Insurance PDF.</p></div><span class="count-pill" id="coverage-type-count"><?=count($selectedInsuranceTypes)?> / 5</span></div>
+ <input type="hidden" name="insurance_types_present" value="1">
+ <input type="hidden" name="coverage_options_present" value="1">
+ <input type="hidden" name="combined_single_limit_present" value="1">
+ <input type="hidden" name="aggregate_other_description_present" value="1">
+ <input type="hidden" name="workers_compensation_other_text_present" value="1">
+ <input type="hidden" name="deductible_retention_amount_present" value="1">
+ <input type="hidden" name="workers_compensation_excluded_present" value="1">
+ <div class="acord-coverage-cards">
+ <?php foreach($insuranceTypeLabels as $typeKey=>$typeLabel):
+  $typeSelected=in_array($typeKey,$selectedInsuranceTypes,true);
+  $typeCarrier=(string)($selectedInsuranceCarriers[$typeKey]??'A');
+  if(!in_array($typeCarrier,['A','B','C','D','E','F'],true))$typeCarrier='A';
+  $groupOptions=is_array($selectedCoverageOptions[$typeKey]??null)?array_map('strval',$selectedCoverageOptions[$typeKey]):[];
+ ?>
+  <section class="acord-coverage-card <?=$typeSelected?'is-selected':''?>" data-coverage-card="<?=e($typeKey)?>">
+   <div class="acord-coverage-card-head">
+    <label class="acord-type-check"><input type="checkbox" name="insurance_types[]" value="<?=e($typeKey)?>" <?=$typeSelected?'checked':''?>><span><?=e($typeLabel)?></span></label>
+    <label class="acord-insurer-letter">Insurer Letter
+     <select name="insurance_carriers[<?=e($typeKey)?>]" data-insurer-select <?=$typeSelected?'':'disabled'?>>
+      <?php foreach(range('A','F') as $letter):?><option value="<?=$letter?>" <?=$typeCarrier===$letter?'selected':''?>><?=$letter?></option><?php endforeach;?>
+     </select>
+    </label>
+   </div>
+   <div class="acord-coverage-options">
+    <?php foreach($optionLabels[$typeKey] as $optionKey=>$optionLabel):?>
+     <label class="acord-option"><input type="checkbox" name="coverage_options[<?=e($typeKey)?>][]" value="<?=e($optionKey)?>" data-coverage-option="<?=e($optionKey)?>" <?=in_array($optionKey,$groupOptions,true)?'checked':''?>><span><?=e($optionLabel)?></span></label>
+    <?php endforeach;?>
+   </div>
+   <?php if($typeKey==='commercial_general_liability'):?>
+    <label class="acord-extra-field">Other description
+     <input type="text" name="aggregate_other_description" value="<?=e($aggregateOtherDescription)?>" maxlength="180" placeholder="Describe other aggregate basis">
+    </label>
+   <?php elseif($typeKey==='automobile_liability'):?>
+    <label class="acord-limit-field">Combined Single Limit (Each Accident)
+     <span class="acord-money-input"><span>$</span><input type="text" inputmode="decimal" name="combined_single_limit" value="<?=e($combinedSingleLimit)?>" placeholder="e.g. 1000000" maxlength="20" aria-describedby="combined-limit-help"></span>
+     <small id="combined-limit-help">Enter the Auto Liability limit. Commas and a leading $ are accepted.</small>
+    </label>
+   <?php elseif($typeKey==='umbrella_liability'||$typeKey==='excess_liability'):?>
+    <label class="acord-extra-field">Deductible / Retention Amount
+     <input type="text" name="deductible_retention_amount" value="<?=e($deductibleRetentionAmount)?>" maxlength="30" placeholder="Amount, if applicable">
+    </label>
+   <?php elseif($typeKey==='workers_compensation_employers_liability'):?>
+    <label class="acord-extra-field">Other description
+     <input type="text" name="workers_compensation_other_text" value="<?=e($workersCompOtherText)?>" maxlength="180" placeholder="Describe other workers compensation coverage">
+    </label>
+    <div class="acord-excluded-options"><span>Proprietor / Partner / Executive Officer Excluded?</span>
+     <?php foreach(['yes'=>'Yes','no'=>'No','na'=>'N/A'] as $excludedKey=>$excludedLabel):?>
+      <label class="acord-option"><input type="radio" name="workers_compensation_excluded" value="<?=e($excludedKey)?>" <?=$workersCompExcluded===$excludedKey?'checked':''?>><span><?=e($excludedLabel)?></span></label>
+     <?php endforeach;?>
+    </div>
+   <?php endif;?>
+  </section>
+ <?php endforeach;?>
+ </div>
+ <p class="muted acord-coverage-note">The insurer letter maps the selected coverage to Insurer A–F above. Only checked coverage types are marked in the ACORD PDF.</p>
+</div>
+<script>
+(function(){
+ const root=document.querySelector('.acord-coverage-manager');
+ if(!root)return;
+ const count=root.querySelector('#coverage-type-count');
+ function refreshCard(card){
+  const typeCheck=card.querySelector('.acord-type-check input');
+  const selected=!!typeCheck.checked;
+  card.classList.toggle('is-selected',selected);
+  card.querySelectorAll('[data-insurer-select]').forEach(input=>{input.disabled=!selected;});
+  card.querySelectorAll('[data-coverage-option]').forEach(input=>{input.disabled=!selected;});
+  const otherAggregate=card.querySelector('input[data-coverage-option="aggregate_other"]');
+  const aggregateText=card.querySelector('input[name="aggregate_other_description"]');
+  if(aggregateText)aggregateText.disabled=!selected||!otherAggregate.checked;
+  const deductible=card.querySelector('input[data-coverage-option="deductible"]');
+  const retention=card.querySelector('input[data-coverage-option="retention"]');
+  const amount=card.querySelector('input[name="deductible_retention_amount"]');
+  if(amount)amount.disabled=!selected||!(deductible.checked||retention.checked);
+  const otherWc=card.querySelector('input[data-coverage-option="other"]');
+  const wcText=card.querySelector('input[name="workers_compensation_other_text"]');
+  if(wcText)wcText.disabled=!selected||!otherWc.checked;
+  card.querySelectorAll('input[name="workers_compensation_excluded"]').forEach(input=>{input.disabled=!selected;});
+ }
+ function refresh(){
+  const cards=Array.from(root.querySelectorAll('[data-coverage-card]'));
+  cards.forEach(refreshCard);
+  count.textContent=cards.filter(card=>card.querySelector('.acord-type-check input').checked).length+' / 5';
+ }
+ root.querySelectorAll('.acord-type-check input,.acord-coverage-options input,.acord-excluded-options input').forEach(input=>input.addEventListener('change',refresh));
+ refresh();
+})();
+</script>
+<?php endif; ?>
 <div class="form-actions"><button class="btn primary">Save Record</button><a class="btn light" href="<?=e(appUrl($listUrl))?>">Cancel</a></div></form></div><?php else: ?><div class="panel crud-list-panel"><h2><?=e($entity['label'])?> List</h2>
 <form method="get" action="<?=e(appUrl('/agency/crud.php'))?>" class="crud-filter">
 <input type="hidden" name="entity" value="<?=e($key)?>">
