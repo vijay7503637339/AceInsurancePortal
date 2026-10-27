@@ -131,16 +131,24 @@ $formUrl=$listUrl.'&action='.$action.($id!==null?'&id='.(int)$id:'');
  ];
 ?>
 <div class="acord-coverage-manager">
- <div class="acord-coverage-heading"><div><h3>ACORD 25 — Type of Insurance</h3><p class="muted">Select the coverages that apply to this policy. These selections and limits will be used to fill the Certificate of Insurance PDF.</p></div><span class="count-pill" id="coverage-type-count"><?=count($selectedInsuranceTypes)?> / 5</span></div>
+ <div class="acord-coverage-heading"><div><h3>ACORD 25 — Type of Insurance</h3><p class="muted">Automobile Liability is currently enabled for this policy workflow. Other coverage sections remain in code for future use.</p></div><span class="count-pill" id="coverage-type-count"><?=in_array('automobile_liability',$selectedInsuranceTypes,true)?'Auto selected':'Select Auto Liability'?></span></div>
  <input type="hidden" name="insurance_types_present" value="1">
  <input type="hidden" name="coverage_options_present" value="1">
  <input type="hidden" name="combined_single_limit_present" value="1">
- <input type="hidden" name="aggregate_other_description_present" value="1">
- <input type="hidden" name="workers_compensation_other_text_present" value="1">
- <input type="hidden" name="deductible_retention_amount_present" value="1">
- <input type="hidden" name="workers_compensation_excluded_present" value="1">
- <div class="acord-coverage-cards">
+ <?php foreach($insuranceTypeKeys as $preservedType): if($preservedType==='automobile_liability'||!in_array($preservedType,$selectedInsuranceTypes,true))continue;
+  $preservedCarrier=(string)($selectedInsuranceCarriers[$preservedType]??'A');
+  if(!in_array($preservedCarrier,['A','B','C','D','E','F'],true))$preservedCarrier='A';
+ ?>
+  <input type="hidden" name="insurance_types[]" value="<?=e($preservedType)?>">
+  <input type="hidden" name="insurance_carriers[<?=e($preservedType)?>]" value="<?=e($preservedCarrier)?>">
+  <?php foreach((array)($selectedCoverageOptions[$preservedType]??[]) as $preservedOption): ?>
+   <input type="hidden" name="coverage_options[<?=e($preservedType)?>][]" value="<?=e((string)$preservedOption)?>">
+  <?php endforeach; ?>
+ <?php endforeach; ?>
+ <div class="acord-coverage-cards acord-coverage-cards-auto-only">
  <?php foreach($insuranceTypeLabels as $typeKey=>$typeLabel):
+  // Keep other ACORD coverage form code for future enablement, but show Auto Liability only for now.
+  if($typeKey!=='automobile_liability')continue;
   $typeSelected=in_array($typeKey,$selectedInsuranceTypes,true);
   $typeCarrier=(string)($selectedInsuranceCarriers[$typeKey]??'A');
   if(!in_array($typeCarrier,['A','B','C','D','E','F'],true))$typeCarrier='A';
@@ -220,7 +228,7 @@ $formUrl=$listUrl.'&action='.$action.($id!==null?'&id='.(int)$id:'');
   const deductibleOrRetention=!!root.querySelector('input[data-coverage-option="deductible"]:checked, input[data-coverage-option="retention"]:checked');
   const sharedAmount=root.querySelector('input[name="deductible_retention_amount"]');
   if(sharedAmount)sharedAmount.disabled=!(umbrellaSelected||excessSelected)||!deductibleOrRetention;
-  count.textContent=cards.filter(card=>card.querySelector('.acord-type-check input').checked).length+' / 5';
+  if(count)count.textContent=cards.some(card=>card.querySelector('.acord-type-check input').checked)?'Auto selected':'Select Auto Liability';
  }
  root.querySelectorAll('.acord-type-check input,.acord-coverage-options input,.acord-excluded-options input').forEach(input=>input.addEventListener('change',refresh));
  refresh();
