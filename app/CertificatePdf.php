@@ -76,6 +76,9 @@ final class CertificatePdf
             $decoded = json_decode((string)$policy['coverage_data'], true);
             if (is_array($decoded)) $coverage = $decoded;
         }
+        $insuranceTypes = is_array($coverage['insurance_types'] ?? null) ? $coverage['insurance_types'] : [];
+        $insuranceCarriers = is_array($coverage['insurance_carriers'] ?? null) ? $coverage['insurance_carriers'] : [];
+        $coverageOptions = is_array($coverage['coverage_options'] ?? null) ? $coverage['coverage_options'] : [];
         $insurers = [];
         foreach (range('A', 'F') as $letter) {
             $field = 'insurer_' . strtolower($letter);
@@ -118,7 +121,7 @@ final class CertificatePdf
             'policy_number' => trim((string)($policy['policy_number'] ?? '')),
             'effective_date' => self::dateValue($policy['effective_date'] ?? null),
             'expiration_date' => self::dateValue($policy['expiration_date'] ?? null),
-            'combined_single_limit' => self::findCoverageValue($coverage, ['combined_single_limit', 'combined_single', 'combined_single_limit_each_accident']),
+            'combined_single_limit' => self::formatLimit(self::findCoverageValue($coverage, ['combined_single_limit', 'combined_single', 'combined_single_limit_each_accident'])),
             'operations' => $vehicleLines ? "Scheduled autos:\n" . implode("\n", $vehicleLines) : '',
             'certificate_holder' => $holderText,
             'authorized_rep' => $signatureName,
@@ -154,6 +157,54 @@ final class CertificatePdf
             self::draw($pdf,$data['effective_date'],117.8,136.2,16.5,4.0,5.8,1);
             self::draw($pdf,$data['expiration_date'],134.8,136.2,17.0,4.0,5.8,1);
             self::draw($pdf,$data['combined_single_limit'],182.8,136.2,23.0,4.0,6.2,1);
+
+            // ACORD 25 INS LTR column maps each selected coverage to its selected insurer letter.
+            $typeRows = [
+                'commercial_general_liability' => 109.2,
+                'automobile_liability' => 136.2,
+                'umbrella_liability' => 158.7,
+                'excess_liability' => 164.0,
+                'workers_compensation_employers_liability' => 173.6,
+            ];
+            foreach ($typeRows as $typeKey => $rowY) {
+                if (!in_array($typeKey, $insuranceTypes, true)) continue;
+                $letter = strtoupper(trim((string)($insuranceCarriers[$typeKey] ?? 'A')));
+                if (!in_array($letter, ['A','B','C','D','E','F'], true)) $letter = 'A';
+                self::draw($pdf, $letter, 8.0, $rowY, 5.0, 3.2, 5.7, 1);
+            }
+
+            // Mark only the ACORD checkboxes chosen on the saved policy form.
+            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'commercial_general_liability', 'claims_made'), 15.5, 109.3);
+            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'commercial_general_liability', 'occur'), 39.0, 109.3);
+            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'commercial_general_liability', 'aggregate_policy'), 15.5, 126.8);
+            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'commercial_general_liability', 'aggregate_project'), 25.5, 126.8);
+            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'commercial_general_liability', 'aggregate_location'), 41.5, 126.8);
+            self::draw($pdf, trim((string)($coverage['aggregate_other_description'] ?? '')), 13.0, 131.7, 41.0, 3.7, 5.4, 1);
+
+            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'automobile_liability', 'any_auto'), 9.5, 140.9);
+            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'automobile_liability', 'all_owned_autos'), 9.5, 146.1);
+            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'automobile_liability', 'hired_autos'), 9.5, 151.2);
+            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'automobile_liability', 'scheduled_autos'), 35.0, 146.1);
+            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'automobile_liability', 'non_owned_autos'), 35.0, 151.2);
+
+            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'umbrella_liability', 'occur'), 39.0, 158.8);
+            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'umbrella_liability', 'claims_made'), 39.0, 164.0);
+            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'excess_liability', 'occur'), 39.0, 158.8);
+            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'excess_liability', 'claims_made'), 39.0, 164.0);
+            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'umbrella_liability', 'deductible') || self::hasOption($coverageOptions, 'excess_liability', 'deductible'), 18.2, 168.5);
+            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'umbrella_liability', 'retention') || self::hasOption($coverageOptions, 'excess_liability', 'retention'), 27.5, 168.5);
+            self::draw($pdf, trim((string)($coverage['deductible_retention_amount'] ?? '')), 37.0, 168.1, 22.0, 3.6, 5.6, 1);
+
+            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'workers_compensation_employers_liability', 'per_statute'), 161.7, 173.6);
+            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'workers_compensation_employers_liability', 'other'), 181.7, 173.6);
+            $excludedStatus = (string)($coverage['workers_compensation_excluded'] ?? '');
+            if (in_array($excludedStatus, ['yes','no'], true)) {
+                self::draw($pdf, strtoupper(substr($excludedStatus, 0, 1)), 53.5, 177.0, 5.0, 3.0, 5.4, 1);
+            } elseif ($excludedStatus === 'na') {
+                self::draw($pdf, 'N/A', 64.0, 177.0, 8.0, 3.0, 5.0, 1);
+            }
+            self::draw($pdf, trim((string)($coverage['workers_compensation_other_text'] ?? '')), 184.0, 177.4, 24.0, 4.0, 5.0, 1);
+
             self::draw($pdf,$data['operations'],7.8,203.3,196.0,17.0,7.0,4);
             self::draw($pdf,$data['certificate_holder'],7.8,233.5,98.0,22.0,7.0,5);
             if ($signaturePath !== '') {
@@ -167,6 +218,100 @@ final class CertificatePdf
         if (!is_string($binary) || !str_starts_with($binary, '%PDF-')) throw new RuntimeException('PDF generation did not return a valid PDF.');
         if (file_put_contents($outputPath, $binary, LOCK_EX) === false) throw new RuntimeException('Could not save the generated certificate. Check storage permissions.');
         @chmod($outputPath, 0640);
+    }
+
+    private static function hasOption(array $options, string $group, string $key): bool
+    {
+        $selected = $options[$group] ?? [];
+        return is_array($selected) && in_array($key, $selected, true);
+    }
+
+    private static function markCheckbox(Fpdi $pdf, bool $selected, float $centerX, float $centerY, float $size = 2.3): void
+    {
+        if (!$selected) return;
+        $pdf->SetDrawColor(12, 24, 42);
+        $pdf->SetLineWidth(0.42);
+        $pdf->Line($centerX - ($size * 0.42), $centerY, $centerX - ($size * 0.08), $centerY + ($size * 0.36));
+        $pdf->Line($centerX - ($size * 0.08), $centerY + ($size * 0.36), $centerX + ($size * 0.56), $centerY - ($size * 0.48));
+    }
+
+    private static function formatLimit(string $value): string
+    {
+        $value = trim(str_replace(['
+        $wanted = array_map(static fn(string $k): string => self::normalKey($k), $keys);
+        foreach ($source as $key => $value) {
+            if (in_array(self::normalKey((string)$key), $wanted, true) && is_scalar($value)) return trim((string)$value);
+            if (is_array($value)) {
+                $result = self::findCoverageValue($value, $keys);
+                if ($result !== '') return $result;
+            }
+        }
+        return '';
+    }
+
+    private static function normalKey(string $key): string
+    {
+        return strtolower((string)preg_replace('/[^a-z0-9]/i', '', $key));
+    }
+
+    private static function dateValue(mixed $value): string
+    {
+        if (!$value) return '';
+        $time = strtotime((string)$value);
+        return $time === false ? '' : date('m/d/Y', $time);
+    }
+
+    private static function pdfText(string $text): string
+    {
+        $out = @iconv('UTF-8', 'Windows-1252//TRANSLIT//IGNORE', $text);
+        return $out === false ? '' : $out;
+    }
+
+    private static function sub(string $text, int $start, int $length): string
+    {
+        if (function_exists('mb_substr')) return mb_substr($text, $start, $length, 'UTF-8');
+        $out = iconv_substr($text, $start, $length, 'UTF-8');
+        return $out === false ? substr($text, $start, $length) : $out;
+    }
+
+    private static function draw(Fpdi $pdf, string $text, float $x, float $y, float $width, float $height, float $size = 7.0, int $maxLines = 2): void
+    {
+        if (trim($text) === '') return;
+        $pdf->SetFont('Helvetica', '', $size);
+        $pdf->SetTextColor(10, 10, 10);
+        $lines = [];
+        foreach (explode("\n", str_replace(["\r\n", "\r"], "\n", $text)) as $paragraph) {
+            $words = preg_split('/\s+/', trim($paragraph)) ?: [];
+            if (!$words || $words === ['']) { $lines[] = ''; continue; }
+            $line = '';
+            foreach ($words as $word) {
+                $candidate = $line === '' ? $word : $line . ' ' . $word;
+                if ($pdf->GetStringWidth(self::pdfText($candidate)) <= $width || $line === '') $line = $candidate;
+                else { $lines[] = $line; $line = $word; }
+            }
+            $lines[] = $line;
+        }
+        $lineHeight = max(3.0, $size * 0.45);
+        $allowed = min($maxLines, max(1, (int)floor($height / $lineHeight)));
+        if (count($lines) > $allowed) {
+            $lines = array_slice($lines, 0, $allowed);
+            $last = array_pop($lines) ?? '';
+            while ($last !== '' && $pdf->GetStringWidth(self::pdfText($last . '...')) > $width) {
+                $chars = function_exists('mb_strlen') ? mb_strlen($last, 'UTF-8') : (iconv_strlen($last, 'UTF-8') ?: strlen($last));
+                $last = self::sub($last, 0, max(0, $chars - 1));
+            }
+            $lines[] = rtrim($last) . '...';
+        }
+        foreach ($lines as $index => $line) {
+            $pdf->SetXY($x, $y + ($index * $lineHeight));
+            $pdf->Cell($width, $lineHeight, self::pdfText($line), 0, 0, 'L', false);
+        }
+    }
+}
+, ',', ' '], '', $value));
+        if ($value === '' || !is_numeric($value)) return $value;
+        $decimals = str_contains($value, '.') ? 2 : 0;
+        return number_format((float)$value, $decimals, '.', ',');
     }
 
     public static function findCoverageValue(array $source, array $keys): string
