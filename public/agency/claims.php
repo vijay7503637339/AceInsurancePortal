@@ -1,0 +1,97 @@
+<?php
+declare(strict_types=1);
+require dirname(__DIR__,2).'/app/bootstrap.php';
+use AcePortal\Auth;
+$u=Auth::requireRoles(['admin','staff']);$base='/agency/claims.php';
+$coverages=['Auto Liability','Physical Damage','Motor Truck Cargo','General Liability','Trailer Interchange','Non-Trucking Liability','Other'];
+$sides=['First Party','Third Party','Both','Subrogation'];
+$statuses=['New','Open','Waiting for Adjuster','Waiting for Insured','Waiting for Carrier','Documents Pending','Under Review','Settlement Offered','Payment Pending','Denied','Closed','Reopened'];
+$action=(string)($_GET['action']??'list');if(!in_array($action,['list','add','edit'],true))$action='list';
+$id=isset($_GET['id'])?(int)$_GET['id']:null;$error=null;$flash=getFlash();
+$form=['claim_number'=>'','insured_id'=>'','incident_date'=>'','claim_date'=>'','coverage'=>'','claim_side'=>'','insurance_carrier'=>'','adjuster_name'=>'','adjuster_contact'=>'','accident_loss_summary'=>'','status'=>'New','latest_update_brief'=>'','next_action'=>'','follow_up_date'=>'','assigned_team_member_id'=>''];
+$customers=db()->query('SELECT id,legal_name,dot_number FROM insureds ORDER BY legal_name')->fetchAll();
+$members=db()->query("SELECT id,full_name,role FROM users WHERE role IN ('admin','staff') AND is_active=1 ORDER BY full_name")->fetchAll();
+$customerMap=[];foreach($customers as $c)$customerMap[(int)$c['id']]=$c;
+$selected=static function(string $f,string $v)use(&$form):string{return (string)($form[$f]??'')===$v?'selected':'';};
+$fmtDate=static function($v){if(!$v)return '—';$t=strtotime((string)$v);return $t?date('M j, Y',$t):'—';};
+if($action==='edit'&&$_SERVER['REQUEST_METHOD']!=='POST'){
+ if(!$id||$id<1){http_response_code(400);exit('Invalid claim ID.');}
+ $q=db()->prepare('SELECT * FROM claims WHERE id=:id');$q->execute(['id'=>$id]);$r=$q->fetch();if(!$r){http_response_code(404);exit('Claim not found.');}
+ $form=array_merge($form,$r);$form['coverage']=(string)(($r['coverage']??'')?:($r['claim_type']??''));$form['accident_loss_summary']=(string)(($r['accident_loss_summary']??'')?:($r['description']??''));$form['assigned_team_member_id']=(string)($r['assigned_team_member_id']??'');if(($form['status']??'')==='open')$form['status']='Open';
+}
+if($_SERVER['REQUEST_METHOD']==='POST'){
+ verifyCsrf();$postAction=(string)($_POST['action']??'save');
+ try{
+  if($postAction==='delete'){
+   $del=(int)($_POST['id']??0);if($del<1)throw new \RuntimeException('Invalid claim ID.');$q=db()->prepare('SELECT id FROM claims WHERE id=:id');$q->execute(['id'=>$del]);if(!$q->fetch())throw new \RuntimeException('Claim not found.');
+   db()->prepare('DELETE FROM claims WHERE id=:id')->execute(['id'=>$del]);audit('delete','claims',$del,'Deleted Claim Master record');flash('success','Claim deleted.');redirect($base);
+  }
+  foreach(array_keys($form) as $f)$form[$f]=trim((string)($_POST[$f]??''));
+  $raw=trim((string)($_POST['id']??''));$id=$raw!==''?(int)$raw:null;$action=$id?'edit':'add';if($raw!==''&&(!$id||$id<1))throw new \RuntimeException('Invalid claim ID.');
+  $form['claim_number']=substr($form['claim_number'],0,100);foreach(['insurance_carrier'=>180,'adjuster_name'=>180,'adjuster_contact'=>180,'accident_loss_summary'=>10000,'latest_update_brief'=>5000,'next_action'=>5000] as $f=>$max)$form[$f]=substr($form[$f],0,$max);
+  if($form['claim_number']==='')throw new \RuntimeException('Claim Number is required.');
+  $insuredId=filter_var($form['insured_id'],FILTER_VALIDATE_INT);if(!$insuredId||$insuredId<1)throw new \RuntimeException('Select a Client / Insured.');$q=db()->prepare('SELECT id FROM insureds WHERE id=:id');$q->execute(['id'=>(int)$insuredId]);if(!$q->fetch())throw new \RuntimeException('Client not found.');
+  foreach(['coverage'=>$coverages,'claim_side'=>$sides,'status'=>$statuses] as $f=>$opts)if(!in_array($form[$f],$opts,true))throw new \RuntimeException('Select a valid '.$f.'.');
+  $validDate=static function(string $v,string $label):?string{if($v==='')return null;$d=\DateTimeImmutable::createFromFormat('!Y-m-d',$v);if(!$d||$d->format('Y-m-d')!==$v)throw new \RuntimeException('Enter a valid '.$label.'.');return $v;};
+  $loss=$validDate($form['incident_date'],'Loss Date');$reported=$validDate($form['claim_date'],'Reported Date');$follow=$validDate($form['follow_up_date'],'Follow-up Date');
+  $assignee=null;if($form['assigned_team_member_id']!==''){$assignee=(int)$form['assigned_team_member_id'];$q=db()->prepare("SELECT id FROM users WHERE id=:id AND role IN ('admin','staff') AND is_active=1");$q->execute(['id'=>$assignee]);if($assignee<1||!$q->fetch())throw new \RuntimeException('Select an active agency staff/admin member.');}
+  $sql='SELECT id FROM claims WHERE claim_number=:n';$par=['n'=>$form['claim_number']];if($id){$sql.=' AND id<>:exclude_id';$par['exclude_id']=$id;}$sql.=' LIMIT 1';$q=db()->prepare($sql);$q->execute($par);if($q->fetch())throw new \RuntimeException('Claim Number already exists.');
+  $data=['claim_number'=>$form['claim_number'],'insured_id'=>(int)$insuredId,'incident_date'=>$loss,'claim_date'=>$reported,'claim_type'=>$form['coverage'],'coverage'=>$form['coverage'],'claim_side'=>$form['claim_side'],'insurance_carrier'=>$form['insurance_carrier']?:null,'adjuster_name'=>$form['adjuster_name']?:null,'adjuster_contact'=>$form['adjuster_contact']?:null,'description'=>$form['accident_loss_summary']?:null,'accident_loss_summary'=>$form['accident_loss_summary']?:null,'status'=>$form['status'],'latest_update_brief'=>$form['latest_update_brief']?:null,'next_action'=>$form['next_action']?:null,'follow_up_date'=>$follow,'assigned_team_member_id'=>$assignee];
+  if($id){$q=db()->prepare('SELECT id FROM claims WHERE id=:id');$q->execute(['id'=>$id]);if(!$q->fetch())throw new \RuntimeException('Claim not found. Refresh and retry.');$data['id']=$id;$sets=[];foreach(array_keys($data) as $f)if($f!=='id')$sets[]=$f.'=:'.$f;db()->prepare('UPDATE claims SET '.implode(',',$sets).' WHERE id=:id')->execute($data);audit('update','claims',$id,'Updated Claim Master record');flash('success','Claim updated.');}
+  else{$data['created_by']=(int)$u['id'];$cols=array_keys($data);$placeholders=array_map(static fn($f)=>':'.$f,$cols);db()->prepare('INSERT INTO claims ('.implode(',',$cols).') VALUES ('.implode(',',$placeholders).')')->execute($data);audit('create','claims',(int)db()->lastInsertId(),'Created Claim Master record');flash('success','Claim added.');}
+  redirect($base);
+ }catch(\Throwable $e){error_log('Claims module error: '.$e->getMessage());$error=$e instanceof \RuntimeException?$e->getMessage():'Could not save this claim. Check the server error log.';$action=trim((string)($_POST['id']??''))!==''?'edit':'add';$id=$action==='edit'?(int)$_POST['id']:null;}
+}
+$search=trim((string)($_GET['q']??''));$sf=trim((string)($_GET['status']??''));$cf=trim((string)($_GET['coverage']??''));$sidef=trim((string)($_GET['claim_side']??''));
+$rows=[];$stats=['total'=>0,'open_count'=>0,'waiting_count'=>0,'closed_count'=>0];
+if($action==='list'){
+ $where=[];$params=[];if($search!==''){$where[]='(c.claim_number LIKE :q1 OR i.legal_name LIKE :q2 OR i.dot_number LIKE :q3 OR c.insurance_carrier LIKE :q4 OR c.adjuster_name LIKE :q5 OR c.adjuster_contact LIKE :q6 OR c.accident_loss_summary LIKE :q7 OR c.latest_update_brief LIKE :q8 OR c.next_action LIKE :q9)';$like='%'.$search.'%';for($n=1;$n<=9;$n++)$params['q'.$n]=$like;}
+ if($sf!==''&&in_array($sf,$statuses,true)){$where[]='c.status=:sf';$params['sf']=$sf;}if($cf!==''&&in_array($cf,$coverages,true)){$where[]='c.coverage=:cf';$params['cf']=$cf;}if($sidef!==''&&in_array($sidef,$sides,true)){$where[]='c.claim_side=:sidef';$params['sidef']=$sidef;}
+ $sql='SELECT c.*,i.legal_name,i.dot_number,u.full_name AS assigned_member_name FROM claims c JOIN insureds i ON i.id=c.insured_id LEFT JOIN users u ON u.id=c.assigned_team_member_id';if($where)$sql.=' WHERE '.implode(' AND ',$where);$sql.=' ORDER BY c.updated_at DESC,c.id DESC LIMIT 500';$q=db()->prepare($sql);$q->execute($params);$rows=$q->fetchAll();
+ $stats=db()->query("SELECT COUNT(*) total,COALESCE(SUM(status IN ('New','Open','open','Reopened','Settlement Offered','Payment Pending','Under Review')),0) open_count,COALESCE(SUM(status='Waiting for Adjuster'),0) waiting_count,COALESCE(SUM(status IN ('Closed','closed')),0) closed_count FROM claims")->fetch()?:$stats;
+}
+$listUrl='/agency/claims.php';$formUrl=$listUrl.'?action='.$action.($id?'&id='.$id:'');
+?><!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Claims Management · ACE Insurance</title><link rel="stylesheet" href="<?=e(appUrl('/assets/app.css'))?>"></head><body>
+<header class="topbar"><div><strong>ACE Insurance</strong><span>Agency Portal</span></div><div><?=e($u['full_name'])?> · <?=e($u['role'])?> <a class="btn light small-btn" href="<?=e(appUrl('/logout.php'))?>">Logout</a></div></header>
+<div class="layout"><aside class="sidebar"><a href="<?=e(appUrl('/agency/index.php'))?>">Dashboard</a><a href="<?=e(appUrl('/agency/finance.php'))?>">Finance Billing Manage</a><a class="selected" href="<?=e(appUrl($base))?>">Claims Management</a><?php foreach(['insureds'=>'Insured Customers','vehicles'=>'Vehicles','policies'=>'Policies','drivers'=>'Drivers'] as $k=>$label):?><a href="<?=e(appUrl('/agency/crud.php?entity='.$k))?>"><?=e($label)?></a><?php endforeach;?><?php if($u['role']==='admin'):?><a href="<?=e(appUrl('/agency/own-company.php'))?>">Own Company</a><a href="<?=e(appUrl('/agency/staff.php'))?>">Staff Accounts</a><a href="<?=e(appUrl('/agency/audit-logs.php'))?>">Activity Logs</a><?php endif;?></aside>
+<main class="main claims-main">
+<?php if($action==='add'||$action==='edit'):?>
+<div class="page-title"><div><h1><?=$action==='edit'?'Edit Claim #'.(int)$id:'Add Claim'?></h1><p class="muted">Enter Claim Master details and keep follow-up information current.</p></div><a class="btn light" href="<?=e(appUrl($base))?>">← Back to Claims List</a></div><?php if($error):?><div class="alert error"><?=e($error)?></div><?php endif;?>
+<section class="panel claims-form-panel"><form method="post" action="<?=e(appUrl($formUrl))?>" class="claims-form"><input type="hidden" name="_csrf" value="<?=e(csrfToken())?>"><input type="hidden" name="id" value="<?=e((string)($id??''))?>"><input type="hidden" name="action" value="save">
+<section class="claims-section"><div class="claims-section-heading"><h2>Claim & Insured</h2><p>DOT number fills automatically from the selected insured record.</p></div><div class="claims-grid">
+<label>Claim Number *<input name="claim_number" required maxlength="100" value="<?=e((string)($form['claim_number']??''))?>" placeholder="Claim number or temporary reference"></label>
+<label>Client / Insured *<select id="claim-insured" name="insured_id" required><option value="">Select client / insured</option><?php foreach($customers as $c):?><option value="<?=(int)$c['id']?>" data-dot="<?=e((string)$c['dot_number'])?>" <?=$selected('insured_id',(string)$c['id'])?>><?=e((string)$c['legal_name'])?> · DOT <?=e((string)$c['dot_number'])?></option><?php endforeach;?></select></label>
+<label>DOT Number<input id="claim-dot" readonly value="<?=e((string)($customerMap[(int)($form['insured_id']??0)]['dot_number']??''))?>" placeholder="Auto-filled"></label>
+<label>Assigned Team Member<select name="assigned_team_member_id"><option value="">Unassigned</option><?php foreach($members as $m):?><option value="<?=(int)$m['id']?>" <?=$selected('assigned_team_member_id',(string)$m['id'])?>><?=e((string)$m['full_name'])?> · <?=e(ucfirst((string)$m['role']))?></option><?php endforeach;?></select></label>
+</div></section>
+<section class="claims-section"><div class="claims-section-heading"><h2>Loss & Coverage</h2><p>Dropdown choices follow the workbook's Claim Master sheet.</p></div><div class="claims-grid">
+<label>Loss Date<input type="date" name="incident_date" value="<?=e((string)($form['incident_date']??''))?>"></label><label>Reported Date<input type="date" name="claim_date" value="<?=e((string)($form['claim_date']??''))?>"></label>
+<label>Coverage *<select name="coverage" required><option value="">Select coverage</option><?php foreach($coverages as $o):?><option value="<?=e($o)?>" <?=$selected('coverage',$o)?>><?=e($o)?></option><?php endforeach;?></select></label>
+<label>Claim Side *<select name="claim_side" required><option value="">Select claim side</option><?php foreach($sides as $o):?><option value="<?=e($o)?>" <?=$selected('claim_side',$o)?>><?=e($o)?></option><?php endforeach;?></select></label>
+<label class="claims-wide">Insurance Carrier<input name="insurance_carrier" maxlength="180" value="<?=e((string)($form['insurance_carrier']??''))?>"></label>
+</div></section>
+<section class="claims-section"><div class="claims-section-heading"><h2>Adjuster & Loss Details</h2><p>Enter adjuster contact information and a concise loss summary.</p></div><div class="claims-grid">
+<label>Adjuster Name<input name="adjuster_name" maxlength="180" value="<?=e((string)($form['adjuster_name']??''))?>"></label><label>Adjuster Contact<input name="adjuster_contact" maxlength="180" value="<?=e((string)($form['adjuster_contact']??''))?>" placeholder="Phone or email"></label>
+<label class="claims-wide">Accident / Loss Summary<textarea name="accident_loss_summary" rows="3" maxlength="10000"><?=e((string)($form['accident_loss_summary']??''))?></textarea></label>
+</div></section>
+<section class="claims-section"><div class="claims-section-heading"><h2>Current Status & Follow-up</h2><p>Keep the latest update, next action and date current.</p></div><div class="claims-grid">
+<label>Current Status *<select name="status" required><?php foreach($statuses as $o):?><option value="<?=e($o)?>" <?=$selected('status',$o)?>><?=e($o)?></option><?php endforeach;?></select></label><label>Follow-up Date<input type="date" name="follow_up_date" value="<?=e((string)($form['follow_up_date']??''))?>"></label>
+<label class="claims-wide">Latest Update (Brief)<textarea name="latest_update_brief" rows="2" maxlength="5000"><?=e((string)($form['latest_update_brief']??''))?></textarea></label><label class="claims-wide">Next Action<textarea name="next_action" rows="2" maxlength="5000"><?=e((string)($form['next_action']??''))?></textarea></label>
+</div></section><div class="form-actions"><button class="btn primary" type="submit"><?=$action==='edit'?'Save Changes':'Add Claim'?></button><a class="btn light" href="<?=e(appUrl($base))?>">Cancel</a></div></form></section>
+<script>(function(){const s=document.getElementById('claim-insured'),d=document.getElementById('claim-dot');if(!s||!d)return;function sync(){const o=s.options[s.selectedIndex];d.value=o?o.dataset.dot||'':'';}s.addEventListener('change',sync);sync();})();</script>
+<?php else:?>
+<div class="page-title"><div><h1>Claims Management</h1><p class="muted">Search and manage Claim Master records and follow-up activity.</p></div><a class="btn primary" href="<?=e(appUrl($base.'?action=add'))?>">+ Add Claim</a></div>
+<?php if($flash):?><div class="alert success"><?=e((string)$flash['message'])?></div><?php endif;?>
+<div class="claims-stats"><div class="claims-stat"><span>Total Claims</span><strong><?=number_format((int)$stats['total'])?></strong></div><div class="claims-stat"><span>Open / In Progress</span><strong><?=number_format((int)$stats['open_count'])?></strong></div><div class="claims-stat"><span>Waiting for Adjuster</span><strong><?=number_format((int)$stats['waiting_count'])?></strong></div><div class="claims-stat"><span>Closed</span><strong><?=number_format((int)$stats['closed_count'])?></strong></div></div>
+<section class="panel claims-list-panel"><form method="get" action="<?=e(appUrl($base))?>" class="claims-filter">
+<label class="claims-search">Search<input type="search" name="q" value="<?=e($search)?>" placeholder="Claim #, insured, DOT, carrier, adjuster..."></label>
+<label>Status<select name="status"><option value="">All statuses</option><?php foreach($statuses as $o):?><option value="<?=e($o)?>" <?=$sf===$o?'selected':''?>><?=e($o)?></option><?php endforeach;?></select></label>
+<label>Coverage<select name="coverage"><option value="">All coverages</option><?php foreach($coverages as $o):?><option value="<?=e($o)?>" <?=$cf===$o?'selected':''?>><?=e($o)?></option><?php endforeach;?></select></label>
+<label>Claim Side<select name="claim_side"><option value="">All claim sides</option><?php foreach($sides as $o):?><option value="<?=e($o)?>" <?=$sidef===$o?'selected':''?>><?=e($o)?></option><?php endforeach;?></select></label>
+<div class="claims-filter-actions"><button class="btn light" type="submit">Search / Filter</button><a class="btn light" href="<?=e(appUrl($base))?>">Reset</a></div></form>
+<div class="claims-table-wrap"><table class="claims-table"><thead><tr><th>Claim Number</th><th>Client / DOT</th><th>Loss / Reported</th><th>Coverage / Side</th><th>Carrier / Adjuster</th><th>Current Status</th><th>Latest Update / Next Action</th><th>Follow-up</th><th>Assigned To</th><th>Actions</th></tr></thead><tbody>
+<?php foreach($rows as $r):?><tr><td><strong><?=e((string)($r['claim_number']?:'—'))?></strong><small>#<?=(int)$r['id']?></small></td><td><strong><?=e((string)$r['legal_name'])?></strong><small>DOT <?=e((string)$r['dot_number'])?></small></td><td><?=$fmtDate($r['incident_date'])?><small>Reported: <?=$fmtDate($r['claim_date'])?></small></td><td><?=e((string)($r['coverage']?:$r['claim_type']?:'—'))?><small><?=e((string)($r['claim_side']?:'—'))?></small></td><td><?=e((string)($r['insurance_carrier']?:'—'))?><small><?=e((string)($r['adjuster_name']?:'No adjuster'))?><?=trim((string)($r['adjuster_contact']??''))!==''?' · '.e((string)$r['adjuster_contact']):''?></small></td><td><span class="claim-status status-<?=e(strtolower(str_replace([' ','/'],'-',(string)$r['status'])))?>"><?=e((string)$r['status'])?></span></td><td class="claim-summary"><?=e((string)($r['latest_update_brief']?:'—'))?><small><?=e((string)($r['next_action']?:'No next action'))?></small></td><td><?=$fmtDate($r['follow_up_date'])?></td><td><?=e((string)($r['assigned_member_name']?:'Unassigned'))?></td><td><div class="claim-row-actions"><a class="btn light small-btn" href="<?=e(appUrl($base.'?action=edit&id='.(int)$r['id']))?>">Edit</a><form method="post" action="<?=e(appUrl($base))?>" onsubmit="return confirm('Delete this claim record?')"><input type="hidden" name="_csrf" value="<?=e(csrfToken())?>"><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?=(int)$r['id']?>"><button class="btn light small-btn claim-delete" type="submit">Delete</button></form></div></td></tr><?php endforeach;?>
+<?php if(!$rows):?><tr><td colspan="10" class="muted claims-empty"><?=($search!==''||$sf!==''||$cf!==''||$sidef!=='')?'No claims match your search or filters.':'No claims yet. Click “Add Claim” to create the first entry.'?></td></tr><?php endif;?>
+</tbody></table></div><div class="claims-list-footer"><span class="muted small">Showing <?=count($rows)?> claims (maximum 500 per view).</span><span class="muted small">One row per claim number; keep follow-up fields current.</span></div></section>
+<?php endif;?>
+</main></div></body></html>
