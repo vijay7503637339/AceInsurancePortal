@@ -299,3 +299,18 @@
   .audit-filter-actions{width:100%;justify-content:stretch}
   .audit-filter-actions .btn{flex:1;text-align:center}
 }
+
+
+/* Activity log pagination */
+.audit-pagination{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 2px 2px;margin-top:16px;border-top:1px solid #e8eef6}
+.audit-page-numbers{display:flex;align-items:center;justify-content:center;gap:5px;flex-wrap:wrap}
+.audit-page-link{display:inline-flex;align-items:center;justify-content:center;min-width:36px;min-height:36px;padding:7px 10px;border:1px solid #d7e1ee;border-radius:8px;background:#fff;color:#364d6d;font-size:12px;font-weight:700;text-decoration:none;transition:background .15s,border-color .15s,color .15s}
+.audit-page-link:hover{background:#eef3fa;border-color:#aebfd5;color:var(--blue)}
+.audit-page-link.is-current{background:var(--blue);border-color:var(--blue);color:#fff;box-shadow:0 3px 8px rgba(29,46,79,.16)}
+.audit-page-link.is-disabled{opacity:.42;pointer-events:none}
+.audit-page-ellipsis{display:inline-flex;align-items:center;justify-content:center;min-width:22px;color:#71819a;font-weight:700}
+@media(max-width:620px){
+  .audit-pagination{justify-content:center;flex-wrap:wrap;gap:10px;padding-top:14px}
+  .audit-page-numbers{order:-1;width:100%}
+  .audit-page-link{min-width:34px;min-height:34px;padding:6px 8px}
+}
