@@ -27,7 +27,11 @@ if (isset($_GET['restart'])) {
 
 function sendCustomerPasswordResetOtp(string $to, string $code): bool
 {
-    $mailConfig = configFile('mail');
+    try {
+        $mailConfig = configFile('mail');
+    } catch (Throwable $exception) {
+        throw new RuntimeException('Email delivery is not configured. Please contact the agency.');
+    }
     $from = trim((string)($mailConfig['from_email'] ?? ''));
     if (!filter_var($from, FILTER_VALIDATE_EMAIL)) {
         throw new RuntimeException('Email delivery is not configured. Please contact the agency.');
