@@ -159,6 +159,8 @@ $formUrl=$listUrl.'&action='.$action.($id!==null?'&id='.(int)$id:'');
  $optionLabels=[
   'commercial_general_liability'=>['claims_made'=>'Claims-Made','occur'=>'Occur','aggregate_policy'=>'Policy','aggregate_project'=>'Project','aggregate_location'=>'Location'],
   'automobile_liability'=>['any_auto'=>'Any Auto','all_owned_autos'=>'All Owned Autos','hired_autos'=>'Hired Autos','scheduled_autos'=>'Scheduled Autos','non_owned_autos'=>'Non-Owned Autos'],
+  'physical_damage'=>[],
+  'motor_truck_cargo'=>[],
   'umbrella_liability'=>['occur'=>'Occur','claims_made'=>'Claims-Made','deductible'=>'Deductible','retention'=>'Retention'],
   'excess_liability'=>['occur'=>'Occur','claims_made'=>'Claims-Made','deductible'=>'Deductible','retention'=>'Retention'],
   'workers_compensation_employers_liability'=>['per_statute'=>'Per Statute','other'=>'Other']
