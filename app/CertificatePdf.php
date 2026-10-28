@@ -176,7 +176,7 @@ final class CertificatePdf
                 if (!in_array($typeKey, $insuranceTypes, true)) continue;
                 $letter = strtoupper(trim((string)($insuranceCarriers[$typeKey] ?? 'A')));
                 if (!in_array($letter, ['A','B','C','D','E','F'], true)) $letter = 'A';
-                self::draw($pdf, $letter, 1.8, $rowY, 4.2, 3.2, 5.7, 1);
+                self::draw($pdf, $letter, 7.0, $rowY, 2.8, 3.2, 5.7, 1);
             }
 
             // Commercial General Liability has its own policy number, dates and six limit values.
@@ -185,12 +185,12 @@ final class CertificatePdf
                 self::draw($pdf, self::dateValue($cglData['effective_date'] ?? null), 117.8, 109.2, 16.5, 4.0, 5.5, 1);
                 self::draw($pdf, self::dateValue($cglData['expiration_date'] ?? null), 134.8, 109.2, 17.0, 4.0, 5.5, 1);
                 $cglLimitRows = [
-                    'each_occurrence' => 112.4,
-                    'damage_to_rented_premises' => 116.5,
-                    'medical_expense' => 120.6,
-                    'personal_advertising_injury' => 124.7,
-                    'general_aggregate' => 128.8,
-                    'products_completed_operations_aggregate' => 132.9,
+                    'each_occurrence' => 109.2,
+                    'damage_to_rented_premises' => 113.3,
+                    'medical_expense' => 117.4,
+                    'personal_advertising_injury' => 121.5,
+                    'general_aggregate' => 125.6,
+                    'products_completed_operations_aggregate' => 129.7,
                 ];
                 foreach ($cglLimitRows as $limitKey => $limitY) {
                     self::draw($pdf, self::formatLimit(trim((string)($cglLimits[$limitKey] ?? ''))), 182.8, $limitY, 23.0, 3.6, 5.6, 1);
@@ -208,19 +208,19 @@ final class CertificatePdf
             }
             if (in_array('motor_truck_cargo', $insuranceTypes, true)) {
                 self::draw($pdf, 'MOTOR TRUCK CARGO', 18.0, 194.7, 55.0, 3.0, 5.8, 1);
-                self::draw($pdf, trim((string)($motorTruckCargoData['description'] ?? '')), 18.0, 197.5, 55.0, 3.2, 4.6, 1);
                 self::draw($pdf, trim((string)($motorTruckCargoData['policy_number'] ?? '')), 76.5, 195.6, 39.0, 3.6, 5.4, 1);
                 self::draw($pdf, self::dateValue($motorTruckCargoData['effective_date'] ?? null), 117.8, 195.6, 16.5, 3.6, 5.1, 1);
                 self::draw($pdf, self::dateValue($motorTruckCargoData['expiration_date'] ?? null), 134.8, 195.6, 17.0, 3.6, 5.1, 1);
-                self::draw($pdf, self::formatLimit(trim((string)($motorTruckCargoData['amount'] ?? ''))), 182.8, 195.6, 23.0, 3.6, 5.5, 1);
+                self::draw($pdf, self::formatLimit(trim((string)($motorTruckCargoData['amount'] ?? ''))), 153.5, 195.6, 18.0, 3.6, 5.5, 1);
+                self::draw($pdf, trim((string)($motorTruckCargoData['description'] ?? '')), 172.5, 195.6, 33.0, 3.6, 5.2, 1);
             }
 
             // Mark only the options selected in the saved policy form.
-            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'commercial_general_liability', 'claims_made'), 15.5, 109.3);
-            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'commercial_general_liability', 'occur'), 39.0, 109.3);
-            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'commercial_general_liability', 'aggregate_policy'), 15.5, 126.8);
-            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'commercial_general_liability', 'aggregate_project'), 25.5, 126.8);
-            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'commercial_general_liability', 'aggregate_location'), 41.5, 126.8);
+            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'commercial_general_liability', 'claims_made'), 18.0, 113.0);
+            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'commercial_general_liability', 'occur'), 45.0, 113.0);
+            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'commercial_general_liability', 'aggregate_policy'), 15.2, 128.8);
+            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'commercial_general_liability', 'aggregate_project'), 31.2, 128.8);
+            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'commercial_general_liability', 'aggregate_location'), 47.4, 128.8);
             self::draw($pdf, trim((string)($coverage['aggregate_other_description'] ?? '')), 13.0, 131.7, 41.0, 3.7, 5.4, 1);
 
             self::markCheckbox($pdf, self::hasOption($coverageOptions, 'automobile_liability', 'any_auto'), 15.5, 141.8);
