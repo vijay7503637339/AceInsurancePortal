@@ -350,3 +350,195 @@
 /* Current client workflow displays Automobile Liability only. */
 .acord-coverage-cards-auto-only{grid-template-columns:minmax(0,1fr)}
 .acord-coverage-cards-auto-only .acord-coverage-card{max-width:100%}
+
+
+/* Agency login visual refresh */
+.auth-single-layout{width:100%;display:flex;justify-content:center}
+.agency-auth-page{
+  position:relative;
+  display:block;
+  min-height:100vh;
+  padding:0;
+  overflow-x:hidden;
+  background:
+    radial-gradient(ellipse at 18% 12%,rgba(59,104,166,.26),transparent 33%),
+    radial-gradient(ellipse at 83% 88%,rgba(51,103,170,.24),transparent 36%),
+    linear-gradient(132deg,#091528 0%,#102442 48%,#19385e 100%);
+  color:#e9f1ff;
+}
+.agency-auth-page::before,
+.agency-auth-page::after{
+  content:"";
+  position:fixed;
+  z-index:0;
+  pointer-events:none;
+  border:1px solid rgba(178,205,244,.12);
+  border-radius:50%;
+}
+.agency-auth-page::before{
+  width:540px;height:540px;
+  top:-300px;right:-150px;
+  box-shadow:0 0 0 44px rgba(178,205,244,.025),0 0 0 92px rgba(178,205,244,.02);
+}
+.agency-auth-page::after{
+  width:420px;height:420px;
+  bottom:-270px;left:28%;
+  box-shadow:0 0 0 35px rgba(178,205,244,.025),0 0 0 75px rgba(178,205,244,.018);
+}
+.agency-auth-layout{
+  position:relative;
+  z-index:1;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(390px,460px);
+  align-items:center;
+  gap:clamp(42px,7vw,112px);
+  width:min(1450px,100%);
+  min-height:100vh;
+  margin:0 auto;
+  padding:clamp(32px,5vw,76px) clamp(24px,6vw,92px);
+}
+.agency-auth-brand{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  min-width:0;
+  max-width:630px;
+  padding:12px 0;
+  color:#f4f7fd;
+}
+.agency-brand-top{display:flex;align-items:center;gap:14px;margin-bottom:clamp(48px,7vh,78px)}
+.agency-brand-symbol{
+  display:flex;align-items:center;justify-content:center;
+  width:52px;height:52px;flex:0 0 52px;
+  border:1px solid rgba(211,227,250,.28);
+  border-radius:16px;
+  background:linear-gradient(145deg,rgba(255,255,255,.18),rgba(181,210,249,.04));
+  color:#f5f8ff;font-size:25px;font-weight:850;letter-spacing:-.06em;
+  box-shadow:inset 0 1px rgba(255,255,255,.15),0 12px 28px rgba(0,0,0,.12);
+}
+.agency-brand-wordmark{display:flex;flex-direction:column;gap:5px}
+.agency-brand-wordmark strong{color:#fff;font-size:19px;font-weight:850;letter-spacing:.035em;line-height:1}
+.agency-brand-wordmark strong span{color:#9ebde8;font-weight:550}
+.agency-brand-wordmark small{color:#9fb2cf;font-size:10px;font-weight:750;letter-spacing:.2em}
+.agency-brand-copy{max-width:590px}
+.agency-brand-eyebrow{
+  display:inline-flex;align-items:center;gap:9px;
+  margin-bottom:18px;color:#a9c6f0;font-size:10px;font-weight:800;letter-spacing:.2em;
+}
+.agency-brand-eyebrow::before{content:"";display:inline-block;width:24px;height:2px;border-radius:2px;background:#82b0f4}
+.agency-brand-copy h1{
+  max-width:560px;margin:0 0 20px;
+  color:#fff;font-size:clamp(39px,4.4vw,64px);
+  font-weight:750;letter-spacing:-.055em;line-height:1.07;
+}
+.agency-brand-copy p{max-width:490px;margin:0;color:#b8c8df;font-size:16px;line-height:1.8}
+.agency-feature-list{display:grid;gap:19px;width:min(100%,510px);margin-top:clamp(34px,5vh,52px)}
+.agency-feature{display:flex;align-items:center;gap:14px}
+.agency-feature-icon{
+  display:flex;align-items:center;justify-content:center;flex:0 0 42px;
+  width:42px;height:42px;border:1px solid rgba(183,208,243,.19);
+  border-radius:12px;background:rgba(180,207,245,.075);
+  color:#b7d3fb;font-size:11px;font-weight:800;letter-spacing:.04em;
+}
+.agency-feature div{display:flex;flex-direction:column;gap:4px;min-width:0}
+.agency-feature strong{color:#eff5ff;font-size:13px;font-weight:750}
+.agency-feature small{color:#9fb2cb;font-size:11px;line-height:1.5}
+.agency-brand-footer{
+  display:flex;align-items:center;gap:9px;flex-wrap:wrap;
+  margin-top:clamp(36px,6vh,62px);color:#8ea6c6;
+  font-size:9px;font-weight:800;letter-spacing:.14em;line-height:1.6;
+}
+.agency-secure-dot{width:7px;height:7px;border-radius:50%;background:#69d5ae;box-shadow:0 0 0 4px rgba(105,213,174,.11)}
+.agency-footer-divider{color:#57769f}
+.auth-card.agency-auth-card{
+  width:100%;max-width:460px;
+  padding:0;
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,.7);
+  border-radius:24px;
+  background:#fff;
+  box-shadow:0 34px 90px rgba(0,8,22,.36),0 7px 22px rgba(0,8,22,.12);
+}
+.agency-auth-card .auth-header{
+  padding:32px 32px 12px;
+  background:linear-gradient(180deg,#f5f8fd 0%,#fff 100%);
+  color:#1d2e4f;
+  text-align:left;
+}
+.agency-auth-card .shield{
+  display:flex;align-items:center;justify-content:center;
+  width:43px;height:43px;margin:0 0 20px;
+  border:1px solid #d7e4f5;border-radius:13px;
+  background:linear-gradient(145deg,#eaf2ff,#fff);
+  color:#1d2e4f;font-size:19px;
+  box-shadow:0 5px 14px rgba(29,46,79,.08);
+}
+.agency-auth-card .auth-header h1{margin:0 0 7px;color:#162947;font-size:25px;letter-spacing:-.035em}
+.agency-auth-card .auth-header p{color:#6b7d96;font-size:13px}
+.agency-auth-card .auth-tabs{
+  gap:5px;margin:14px 32px 0;padding:5px;
+  border:1px solid #e2e9f3;border-radius:11px;background:#f2f5fa;
+}
+.agency-auth-card .auth-tabs a{padding:11px 8px;border-radius:8px;color:#697b95;font-size:12px;font-weight:750;transition:background .18s,color .18s,box-shadow .18s}
+.agency-auth-card .auth-tabs a.active{background:#1d2e4f;color:#fff;box-shadow:0 4px 10px rgba(29,46,79,.18)}
+.agency-auth-card .auth-body{padding:25px 32px 31px}
+.agency-auth-card .auth-body form{gap:16px}
+.agency-auth-card .auth-body label{gap:8px;color:#2a3c57;font-size:12px;font-weight:750}
+.agency-auth-card .auth-body input{
+  width:100%;min-height:47px;padding:13px 14px;
+  border:1px solid #d4dfed;border-radius:9px;background:#fbfcff;
+  color:#1b2d48;font:inherit;font-size:13px;
+  transition:border-color .15s,background .15s,box-shadow .15s;
+}
+.agency-auth-card .auth-body input:hover{border-color:#b4c5dc}
+.agency-auth-card .auth-body input:focus{
+  outline:none;border-color:#5c7eae;background:#fff;
+  box-shadow:0 0 0 3px rgba(49,91,148,.12);
+}
+.agency-auth-card .btn.primary{
+  min-height:48px;margin-top:4px;border:0;border-radius:9px;
+  background:linear-gradient(110deg,#1d2e4f,#2f4d78);
+  color:#fff;font-size:13px;font-weight:800;
+  box-shadow:0 8px 17px rgba(29,46,79,.2);
+  transition:transform .15s,box-shadow .15s,filter .15s;
+}
+.agency-auth-card .btn.primary:hover{transform:translateY(-1px);filter:brightness(1.08);box-shadow:0 11px 22px rgba(29,46,79,.25)}
+.agency-auth-card .btn.primary:focus-visible{outline:3px solid #92b9f0;outline-offset:3px}
+.agency-auth-card .auth-body>.muted{margin:18px 0 0;color:#77869b;font-size:11px;line-height:1.75}
+.agency-auth-card .alert{font-size:12px}
+@media(max-width:1000px){
+  .agency-auth-layout{grid-template-columns:minmax(0,1fr) minmax(350px,420px);gap:36px;padding:36px 28px}
+  .agency-brand-top{margin-bottom:45px}
+  .agency-brand-copy h1{font-size:clamp(34px,4.2vw,48px)}
+  .agency-brand-copy p{font-size:14px}
+  .agency-feature-list{gap:15px;margin-top:34px}
+}
+@media(max-width:760px){
+  .agency-auth-layout{grid-template-columns:minmax(0,1fr);justify-items:center;gap:26px;padding:30px 18px 36px}
+  .agency-auth-brand{width:min(100%,460px);padding:0}
+  .agency-brand-top{gap:11px;margin-bottom:29px}
+  .agency-brand-symbol{width:44px;height:44px;flex-basis:44px;border-radius:13px;font-size:22px}
+  .agency-brand-wordmark strong{font-size:16px}
+  .agency-brand-copy{max-width:100%}
+  .agency-brand-eyebrow{margin-bottom:12px;font-size:9px}
+  .agency-brand-copy h1{max-width:440px;margin-bottom:12px;font-size:clamp(31px,8vw,44px)}
+  .agency-brand-copy p{max-width:470px;font-size:13px;line-height:1.65}
+  .agency-feature-list{display:none}
+  .agency-brand-footer{margin-top:22px;font-size:8px}
+  .auth-card.agency-auth-card{max-width:460px;border-radius:20px}
+  .agency-auth-card .auth-header{padding:25px 24px 10px}
+  .agency-auth-card .auth-tabs{margin-left:24px;margin-right:24px}
+  .agency-auth-card .auth-body{padding:22px 24px 25px}
+}
+@media(max-width:420px){
+  .agency-auth-layout{padding:24px 13px 28px;gap:22px}
+  .agency-brand-copy h1{font-size:30px}
+  .agency-auth-card .auth-header{padding:22px 20px 9px}
+  .agency-auth-card .auth-tabs{margin-left:20px;margin-right:20px}
+  .agency-auth-card .auth-tabs a{font-size:11px;padding:10px 5px}
+  .agency-auth-card .auth-body{padding:20px}
+}
+@media(prefers-reduced-motion:reduce){
+  .agency-auth-card .auth-tabs a,.agency-auth-card .auth-body input,.agency-auth-card .btn.primary{transition:none}
+  .agency-auth-card .btn.primary:hover{transform:none}
+}
