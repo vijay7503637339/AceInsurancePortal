@@ -34,7 +34,7 @@ final class Crud {
     }
    }
    if(array_key_exists('insurance_types_present',$input)) {
-    $allowedTypes=['commercial_general_liability','automobile_liability','umbrella_liability','excess_liability','workers_compensation_employers_liability'];
+    $allowedTypes=['commercial_general_liability','automobile_liability','physical_damage','motor_truck_cargo','umbrella_liability','excess_liability','workers_compensation_employers_liability'];
     $rawTypes=is_array($input['insurance_types']??null)?array_map('strval',$input['insurance_types']):[];
     $types=array_values(array_unique(array_intersect($allowedTypes,$rawTypes)));
     $coverage['insurance_types']=$types;
@@ -92,9 +92,67 @@ final class Crud {
     $coverage['combined_single_limit']=$normalized;
    }
 
+   // Persist the Commercial General Liability policy details and six ACORD limits inside coverage_data.
+   $cleanCoverageDate=static function($raw,string $label):string {
+    $value=trim((string)($raw??''));
+    if($value==='') return '';
+    $date=\DateTimeImmutable::createFromFormat('!Y-m-d',$value);
+    if(!$date||$date->format('Y-m-d')!==$value) throw new \InvalidArgumentException($label.' must be a valid date.');
+    return $value;
+   };
+   $cleanCoverageAmount=static function($raw,string $label):string {
+    $value=trim((string)($raw??''));
+    $normalized=preg_replace('/[,$\s]/','',$value)??'';
+    if($normalized!==''&&!preg_match('/^\d{1,12}(?:\.\d{1,2})?$/',$normalized)) throw new \InvalidArgumentException($label.' must be a valid amount (up to 12 digits and 2 decimals).');
+    return $normalized;
+   };
+
+   if(array_key_exists('cgl_data_present',$input)) {
+    $limits=[];
+    $limitFields=[
+     'each_occurrence'=>'Each Occurrence',
+     'damage_to_rented_premises'=>'Damage to Rented Premises',
+     'medical_expense'=>'Medical Expense',
+     'personal_advertising_injury'=>'Personal & Advertising Injury',
+     'general_aggregate'=>'General Aggregate',
+     'products_completed_operations_aggregate'=>'Products - Completed Operations Aggregate'
+    ];
+    foreach($limitFields as $field=>$label) {
+     $limits[$field]=$cleanCoverageAmount($input['cgl_limit_'.$field]??'', 'Commercial General Liability — '.$label);
+    }
+    $coverage['commercial_general_liability']=[
+     'policy_number'=>mb_substr(trim((string)($input['cgl_policy_number']??'')),0,100),
+     'effective_date'=>$cleanCoverageDate($input['cgl_effective_date']??'', 'Commercial General Liability start date'),
+     'expiration_date'=>$cleanCoverageDate($input['cgl_expiration_date']??'', 'Commercial General Liability end date'),
+     'limits'=>$limits
+    ];
+   }
+
+   if(array_key_exists('physical_damage_data_present',$input)) {
+    $coverage['physical_damage']=[
+     'policy_number'=>mb_substr(trim((string)($input['physical_damage_policy_number']??'')),0,100),
+     'effective_date'=>$cleanCoverageDate($input['physical_damage_effective_date']??'', 'Physical Damage start date'),
+     'expiration_date'=>$cleanCoverageDate($input['physical_damage_expiration_date']??'', 'Physical Damage end date'),
+     'amount'=>$cleanCoverageAmount($input['physical_damage_amount']??'', 'Physical Damage amount'),
+     'description'=>mb_substr(trim((string)($input['physical_damage_description']??'')),0,250)
+    ];
+   }
+
+   if(array_key_exists('motor_truck_cargo_data_present',$input)) {
+    $coverage['motor_truck_cargo']=[
+     'policy_number'=>mb_substr(trim((string)($input['motor_truck_cargo_policy_number']??'')),0,100),
+     'effective_date'=>$cleanCoverageDate($input['motor_truck_cargo_effective_date']??'', 'Motor Truck Cargo start date'),
+     'expiration_date'=>$cleanCoverageDate($input['motor_truck_cargo_expiration_date']??'', 'Motor Truck Cargo end date'),
+     'amount'=>$cleanCoverageAmount($input['motor_truck_cargo_amount']??'', 'Motor Truck Cargo amount'),
+     'description'=>mb_substr(trim((string)($input['motor_truck_cargo_description']??'')),0,250)
+    ];
+   }
+
    $typeLabels=[
     'commercial_general_liability'=>'Commercial General Liability',
     'automobile_liability'=>'Automobile Liability',
+    'physical_damage'=>'Physical Damage',
+    'motor_truck_cargo'=>'Motor Truck Cargo',
     'umbrella_liability'=>'Umbrella Liability',
     'excess_liability'=>'Excess Liability',
     'workers_compensation_employers_liability'=>"Workers Compensation and Employers' Liability"
@@ -108,6 +166,8 @@ final class Crud {
    $optionGroupLabels=[
     'commercial_general_liability'=>'Commercial General Liability',
     'automobile_liability'=>'Automobile Liability',
+    'physical_damage'=>'Physical Damage',
+    'motor_truck_cargo'=>'Motor Truck Cargo',
     'umbrella_liability'=>'Umbrella Liability',
     'excess_liability'=>'Excess Liability',
     'workers_compensation_employers_liability'=>"Workers Compensation and Employers' Liability"
