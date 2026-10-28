@@ -11,6 +11,24 @@ CREATE TABLE claims (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, insured_id B
 CREATE TABLE audit_logs (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, actor_user_id BIGINT UNSIGNED NULL, actor_role VARCHAR(30) NULL, action VARCHAR(80) NOT NULL, entity_type VARCHAR(80) NOT NULL, entity_id BIGINT UNSIGNED NULL, summary VARCHAR(500) NOT NULL, ip_address VARCHAR(45) NULL, user_agent VARCHAR(500) NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(actor_user_id) REFERENCES users(id) ON DELETE SET NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 CREATE TABLE signup_verifications (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, insured_id BIGINT UNSIGNED NOT NULL, email VARCHAR(254) NOT NULL, code_hash VARCHAR(255) NOT NULL, expires_at DATETIME NOT NULL, attempts TINYINT UNSIGNED DEFAULT 0, verified_at DATETIME NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(insured_id) REFERENCES insureds(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 CREATE TABLE password_resets (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, user_id BIGINT UNSIGNED NOT NULL, token_hash VARCHAR(255) NOT NULL, expires_at DATETIME NOT NULL, used_at DATETIME NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+-- OTP-based customer password recovery.
+CREATE TABLE IF NOT EXISTS password_reset_otps (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ user_id BIGINT UNSIGNED NOT NULL,
+ email VARCHAR(254) NOT NULL,
+ dot_number VARCHAR(24) NOT NULL,
+ otp_hash VARCHAR(255) NOT NULL,
+ expires_at DATETIME NOT NULL,
+ attempts TINYINT UNSIGNED NOT NULL DEFAULT 0,
+ verified_at DATETIME NULL,
+ used_at DATETIME NULL,
+ request_ip VARCHAR(45) NULL,
+ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+ INDEX idx_reset_otp_email_created (email, created_at),
+ INDEX idx_reset_otp_ip_created (request_ip, created_at),
+ INDEX idx_reset_otp_user_status (user_id, used_at, expires_at),
+ CONSTRAINT fk_reset_otp_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Main-admin-managed producer/contact/signature details used by certificate PDFs.
 CREATE TABLE IF NOT EXISTS own_company_settings (
