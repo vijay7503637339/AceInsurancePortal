@@ -158,6 +158,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!is_array($context) || (string)($_SESSION['password_reset_stage'] ?? '') !== 'otp') {
                 throw new RuntimeException('Start password recovery again.');
             }
+            $verifyAccount = db()->prepare(
+                "SELECT u.id
+                 FROM users u
+                 INNER JOIN insureds i ON i.id=u.insured_id
+                 WHERE u.id=:user_id AND u.role='customer' AND u.is_active=1 AND i.status='active'
+                   AND LOWER(TRIM(u.email))=:user_email
+                   AND LOWER(TRIM(i.email))=:insured_email
+                   AND REPLACE(i.dot_number,' ','')=:dot_number
+                 LIMIT 1"
+            );
+            $verifyAccount->execute([
+                'user_id' => (int)$context['user_id'],
+                'user_email' => (string)$context['email'],
+                'insured_email' => (string)$context['email'],
+                'dot_number' => (string)$context['dot_number'],
+            ]);
+            if (!$verifyAccount->fetch()) {
+                throw new RuntimeException('Customer details have changed. Start password recovery again or contact the agency.');
+            }
+
             $newContext = issueCustomerPasswordResetOtp((int)$context['user_id'], (string)$context['email'], (string)$context['dot_number']);
             $_SESSION['password_reset_context'] = $newContext;
             $_SESSION['password_reset_stage'] = 'otp';
