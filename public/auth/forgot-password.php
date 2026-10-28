@@ -199,11 +199,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new RuntimeException('Incorrect OTP. Please check the code and try again.');
             }
 
-            db()->prepare(
+            $markVerified = db()->prepare(
                 'UPDATE password_reset_otps
                  SET verified_at=UTC_TIMESTAMP()
                  WHERE id=:id AND used_at IS NULL AND verified_at IS NULL AND expires_at>UTC_TIMESTAMP()'
-            )->execute(['id' => (int)$reset['id']]);
+            );
+            $markVerified->execute(['id' => (int)$reset['id']]);
+            if ($markVerified->rowCount() !== 1) {
+                throw new RuntimeException('This OTP was already used or has expired. Please try again.');
+            }
             $_SESSION['password_reset_stage'] = 'password';
             $stage = 'password';
             $notice = 'Email verified. Create a new password for your account.';
@@ -251,8 +255,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     throw new RuntimeException('The OTP verification has expired. Please start password recovery again.');
                 }
 
-                $pdo->prepare("UPDATE users SET password_hash=:hash WHERE id=:id AND role='customer' AND is_active=1")
-                    ->execute(['hash' => password_hash($password, PASSWORD_DEFAULT), 'id' => (int)$reset['user_id']]);
+                $passwordUpdate = $pdo->prepare("UPDATE users SET password_hash=:hash WHERE id=:id AND role='customer' AND is_active=1");
+                $passwordUpdate->execute(['hash' => password_hash($password, PASSWORD_DEFAULT), 'id' => (int)$reset['user_id']]);
+                if ($passwordUpdate->rowCount() !== 1) {
+                    throw new RuntimeException('This customer account is not active. Please contact the agency.');
+                }
                 $pdo->prepare('UPDATE password_reset_otps SET used_at=UTC_TIMESTAMP() WHERE id=:id')
                     ->execute(['id' => (int)$reset['reset_id']]);
                 $pdo->prepare('UPDATE password_reset_otps SET used_at=UTC_TIMESTAMP() WHERE user_id=:user_id AND id<>:id AND used_at IS NULL')
