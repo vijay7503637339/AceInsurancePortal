@@ -41,5 +41,63 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
  } catch(Throwable $ex){$error=$ex instanceof PDOException&&(string)$ex->getCode()==='23000'?'Account already exists. Please sign in or start again.':$ex->getMessage();$stage=(string)($_SESSION['signup_stage']??'dot');}
 }
 ?>
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Create Account</title><link rel="stylesheet" href="<?=e(appUrl('/assets/app.css'))?>"></head><body class="auth-page"><div class="auth-card wide"><header class="auth-header"><div class="shield">◆</div><h1>Create Account</h1><p>American Trucking Solutions</p></header><div class="steps"><span class="<?=$stage==='dot'?'current':''?>">1<br><small>Verify DOT</small></span><span class="<?=$stage==='email'?'current':''?>">2<br><small>Verify Email</small></span><span class="<?=$stage==='password'?'current':''?>">3<br><small>Set Password</small></span></div><div class="auth-body"><?php if($error):?><div class="alert error"><?=e($error)?></div><?php endif;?>
-<?php if($stage==='dot'):?><form method="post"><input type="hidden" name="_csrf" value="<?=e(csrfToken())?>"><input type="hidden" name="action" value="verify_dot"><label>DOT Number<input name="dot_number" required></label><label>Email Address<input type="email" name="email" required></label><p class="muted small">DOT number and email must match an active insured record entered by your agency.</p><button class="btn primary full">Verify DOT & Continue</button></form><?php elseif($stage==='email'):?><form method="post"><input type="hidden" name="_csrf" value="<?=e(csrfToken())?>"><input type="hidden" name="action" value="verify_email"><label>Six-digit verification code<input name="code" required pattern="[0-9]{6}" maxlength="6"></label><button class="btn primary full">Verify Email</button></form><?php else:?><form method="post"><input type="hidden" name="_csrf" value="<?=e(csrfToken())?>"><input type="hidden" name="action" value="create_password"><label>Create Password<input type="password" name="password" minlength="12" required></label><label>Confirm Password<input type="password" name="confirm_password" minlength="12" required></label><button class="btn primary full">Create Account</button></form><?php endif;?><div class="auth-links center"><a href="<?=e(appUrl('/login.php'))?>">← Back to Login</a></div></div></div></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Create Account · ACE Insurance</title>
+<link rel="stylesheet" href="<?=e(appUrl('/assets/app.css'))?>">
+</head>
+<body class="auth-page agency-auth-page">
+<div class="agency-auth-layout">
+  <?php require __DIR__ . '/_brand-panel.php'; ?>
+  <div class="auth-card agency-auth-card signup-auth-card">
+    <header class="auth-header">
+      <div class="shield" aria-hidden="true">◆</div>
+      <h1>Create Account</h1>
+      <p>American Trucking Solutions</p>
+    </header>
+    <div class="auth-recovery-steps">
+      <div class="<?=$stage==='dot'?'current':($stage==='email'||$stage==='password'?'done':'')?>"><span>1</span><small>Verify details</small></div>
+      <div class="<?=$stage==='email'?'current':($stage==='password'?'done':'')?>"><span>2</span><small>Email OTP</small></div>
+      <div class="<?=$stage==='password'?'current':''?>"><span>3</span><small>Set password</small></div>
+    </div>
+    <div class="auth-body">
+      <?php if ($error): ?><div class="alert error"><?=e($error)?></div><?php endif; ?>
+
+      <?php if ($stage === 'dot'): ?>
+        <p class="auth-step-intro">Use the email and DOT number already registered with your agency.</p>
+        <form method="post" autocomplete="on">
+          <input type="hidden" name="_csrf" value="<?=e(csrfToken())?>">
+          <input type="hidden" name="action" value="verify_dot">
+          <label>DOT Number<input name="dot_number" required autocomplete="off"></label>
+          <label>Email Address<input type="email" name="email" required autocomplete="email"></label>
+          <p class="muted small">DOT number and email must match an active insured record entered by your agency.</p>
+          <button class="btn primary full" type="submit">Verify DOT &amp; Continue</button>
+        </form>
+      <?php elseif ($stage === 'email'): ?>
+        <p class="auth-step-intro">Enter the six-digit verification code sent to your registered email address.</p>
+        <form method="post" autocomplete="on">
+          <input type="hidden" name="_csrf" value="<?=e(csrfToken())?>">
+          <input type="hidden" name="action" value="verify_email">
+          <label>Six-digit verification code<input class="otp-input" name="code" required pattern="[0-9]{6}" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="000000"></label>
+          <button class="btn primary full" type="submit">Verify Email</button>
+        </form>
+      <?php else: ?>
+        <p class="auth-step-intro">Create a strong password with at least 12 characters, including letters and numbers.</p>
+        <form method="post" autocomplete="on">
+          <input type="hidden" name="_csrf" value="<?=e(csrfToken())?>">
+          <input type="hidden" name="action" value="create_password">
+          <label>Create Password<input type="password" name="password" minlength="12" required autocomplete="new-password"></label>
+          <label>Confirm Password<input type="password" name="confirm_password" minlength="12" required autocomplete="new-password"></label>
+          <button class="btn primary full" type="submit">Create Account</button>
+        </form>
+      <?php endif; ?>
+
+      <div class="auth-links center"><a href="<?=e(appUrl('/login.php?portal=customer'))?>">← Back to Login</a></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
