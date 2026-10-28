@@ -79,6 +79,10 @@ final class CertificatePdf
         $insuranceTypes = is_array($coverage['insurance_types'] ?? null) ? $coverage['insurance_types'] : [];
         $insuranceCarriers = is_array($coverage['insurance_carriers'] ?? null) ? $coverage['insurance_carriers'] : [];
         $coverageOptions = is_array($coverage['coverage_options'] ?? null) ? $coverage['coverage_options'] : [];
+        $cglData = is_array($coverage['commercial_general_liability'] ?? null) ? $coverage['commercial_general_liability'] : [];
+        $cglLimits = is_array($cglData['limits'] ?? null) ? $cglData['limits'] : [];
+        $physicalDamageData = is_array($coverage['physical_damage'] ?? null) ? $coverage['physical_damage'] : [];
+        $motorTruckCargoData = is_array($coverage['motor_truck_cargo'] ?? null) ? $coverage['motor_truck_cargo'] : [];
         $insurers = [];
         foreach (range('A', 'F') as $letter) {
             $field = 'insurer_' . strtolower($letter);
@@ -165,12 +169,50 @@ final class CertificatePdf
                 'umbrella_liability' => 158.7,
                 'excess_liability' => 164.0,
                 'workers_compensation_employers_liability' => 173.6,
+                'physical_damage' => 186.2,
+                'motor_truck_cargo' => 194.7,
             ];
             foreach ($typeRows as $typeKey => $rowY) {
                 if (!in_array($typeKey, $insuranceTypes, true)) continue;
                 $letter = strtoupper(trim((string)($insuranceCarriers[$typeKey] ?? 'A')));
                 if (!in_array($letter, ['A','B','C','D','E','F'], true)) $letter = 'A';
                 self::draw($pdf, $letter, 1.8, $rowY, 4.2, 3.2, 5.7, 1);
+            }
+
+            // Commercial General Liability has its own policy number, dates and six limit values.
+            if (in_array('commercial_general_liability', $insuranceTypes, true)) {
+                self::draw($pdf, trim((string)($cglData['policy_number'] ?? '')), 76.5, 109.2, 39.0, 4.0, 6.2, 1);
+                self::draw($pdf, self::dateValue($cglData['effective_date'] ?? null), 117.8, 109.2, 16.5, 4.0, 5.5, 1);
+                self::draw($pdf, self::dateValue($cglData['expiration_date'] ?? null), 134.8, 109.2, 17.0, 4.0, 5.5, 1);
+                $cglLimitRows = [
+                    'each_occurrence' => 112.4,
+                    'damage_to_rented_premises' => 116.5,
+                    'medical_expense' => 120.6,
+                    'personal_advertising_injury' => 124.7,
+                    'general_aggregate' => 128.8,
+                    'products_completed_operations_aggregate' => 132.9,
+                ];
+                foreach ($cglLimitRows as $limitKey => $limitY) {
+                    self::draw($pdf, self::formatLimit(trim((string)($cglLimits[$limitKey] ?? ''))), 182.8, $limitY, 23.0, 3.6, 5.6, 1);
+                }
+            }
+
+            // Physical Damage and Motor Truck Cargo occupy the unused rows just above Description of Operations.
+            if (in_array('physical_damage', $insuranceTypes, true)) {
+                self::draw($pdf, 'PHYSICAL DAMAGE', 18.0, 186.2, 55.0, 3.0, 5.8, 1);
+                self::draw($pdf, trim((string)($physicalDamageData['description'] ?? '')), 18.0, 189.0, 55.0, 3.2, 4.6, 1);
+                self::draw($pdf, trim((string)($physicalDamageData['policy_number'] ?? '')), 76.5, 187.1, 39.0, 3.6, 5.4, 1);
+                self::draw($pdf, self::dateValue($physicalDamageData['effective_date'] ?? null), 117.8, 187.1, 16.5, 3.6, 5.1, 1);
+                self::draw($pdf, self::dateValue($physicalDamageData['expiration_date'] ?? null), 134.8, 187.1, 17.0, 3.6, 5.1, 1);
+                self::draw($pdf, self::formatLimit(trim((string)($physicalDamageData['amount'] ?? ''))), 182.8, 187.1, 23.0, 3.6, 5.5, 1);
+            }
+            if (in_array('motor_truck_cargo', $insuranceTypes, true)) {
+                self::draw($pdf, 'MOTOR TRUCK CARGO', 18.0, 194.7, 55.0, 3.0, 5.8, 1);
+                self::draw($pdf, trim((string)($motorTruckCargoData['description'] ?? '')), 18.0, 197.5, 55.0, 3.2, 4.6, 1);
+                self::draw($pdf, trim((string)($motorTruckCargoData['policy_number'] ?? '')), 76.5, 195.6, 39.0, 3.6, 5.4, 1);
+                self::draw($pdf, self::dateValue($motorTruckCargoData['effective_date'] ?? null), 117.8, 195.6, 16.5, 3.6, 5.1, 1);
+                self::draw($pdf, self::dateValue($motorTruckCargoData['expiration_date'] ?? null), 134.8, 195.6, 17.0, 3.6, 5.1, 1);
+                self::draw($pdf, self::formatLimit(trim((string)($motorTruckCargoData['amount'] ?? ''))), 182.8, 195.6, 23.0, 3.6, 5.5, 1);
             }
 
             // Mark only the options selected in the saved policy form.
