@@ -26,22 +26,21 @@ $flash = getFlash();
 <title>Ace Insurance Portal — Sign In</title>
 <link rel="stylesheet" href="<?=e(appUrl('/assets/app.css'))?>">
 </head>
-<body class="auth-page <?=$portal === 'agency' ? 'agency-auth-page' : 'customer-auth-page'?>">
-<div class="<?=$portal === 'agency' ? 'agency-auth-layout' : 'auth-single-layout'?>">
-<?php if ($portal === 'agency'): ?>
+<body class="auth-page agency-auth-page">
+<div class="agency-auth-layout">
   <aside class="agency-auth-brand" aria-label="Agency portal overview">
     <div class="agency-brand-top">
       <span class="agency-brand-symbol" aria-hidden="true">A</span>
       <div class="agency-brand-wordmark">
         <strong>ACE <span>INSURANCE</span></strong>
-        <small>AGENCY PORTAL</small>
+        <small>INSURANCE PORTAL</small>
       </div>
     </div>
 
     <div class="agency-brand-copy">
       <span class="agency-brand-eyebrow">INSURANCE OPERATIONS</span>
       <h1>Confidence in every policy.</h1>
-      <p>Your agency workspace for managing clients, coverage, claims and billing — all in one secure place.</p>
+      <p>A secure workspace to access insurance policies, coverage details, claims and account information — all in one place.</p>
     </div>
 
     <div class="agency-feature-list">
@@ -55,15 +54,14 @@ $flash = getFlash();
       </div>
       <div class="agency-feature">
         <span class="agency-feature-icon" aria-hidden="true">03</span>
-        <div><strong>Secure agency access</strong><small>Role-based access with activity tracking.</small></div>
+        <div><strong>Secure account access</strong><small>Your information stays within your authorized portal.</small></div>
       </div>
     </div>
 
-    <div class="agency-brand-footer"><span class="agency-secure-dot"></span> SECURE AGENCY ACCESS <span class="agency-footer-divider">•</span> ACE INSURANCE</div>
+    <div class="agency-brand-footer"><span class="agency-secure-dot"></span> SECURE PORTAL ACCESS <span class="agency-footer-divider">•</span> ACE INSURANCE</div>
   </aside>
-<?php endif; ?>
 
-  <div class="auth-card <?=$portal === 'agency' ? 'agency-auth-card' : ''?>">
+  <div class="auth-card agency-auth-card">
     <header class="auth-header">
       <div class="shield" aria-hidden="true">◆</div>
       <h1>Ace Insurance</h1>
