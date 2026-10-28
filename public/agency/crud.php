@@ -100,10 +100,12 @@ $formUrl=$listUrl.'&action='.$action.($id!==null?'&id='.(int)$id:'');
  $policyCoverage=[];
  $rawCoverage=$editing['coverage_data']??null;
  if(is_string($rawCoverage)&&$rawCoverage!==''){$decodedCoverage=json_decode($rawCoverage,true);if(is_array($decodedCoverage))$policyCoverage=$decodedCoverage;}
- $insuranceTypeKeys=['commercial_general_liability','automobile_liability','umbrella_liability','excess_liability','workers_compensation_employers_liability'];
+ $insuranceTypeKeys=['commercial_general_liability','automobile_liability','physical_damage','motor_truck_cargo','umbrella_liability','excess_liability','workers_compensation_employers_liability'];
  $insuranceTypeLabels=[
   'commercial_general_liability'=>'Commercial General Liability',
   'automobile_liability'=>'Automobile Liability',
+  'physical_damage'=>'Physical Damage',
+  'motor_truck_cargo'=>'Motor Truck Cargo',
   'umbrella_liability'=>'Umbrella Liability',
   'excess_liability'=>'Excess Liability',
   'workers_compensation_employers_liability'=>"Workers Compensation & Employers' Liability"
@@ -118,6 +120,38 @@ $formUrl=$listUrl.'&action='.$action.($id!==null?'&id='.(int)$id:'');
   ? (is_array($editing['insurance_carriers']??null)?$editing['insurance_carriers']:[])
   : (is_array($policyCoverage['insurance_carriers']??null)?$policyCoverage['insurance_carriers']:[]);
  $combinedSingleLimit=array_key_exists('combined_single_limit_present',$editing)?(string)($editing['combined_single_limit']??''):(string)($policyCoverage['combined_single_limit']??'');
+
+ $cglData=is_array($policyCoverage['commercial_general_liability']??null)?$policyCoverage['commercial_general_liability']:[];
+ $cglLimits=is_array($cglData['limits']??null)?$cglData['limits']:[];
+ $cglPolicyNumber=(string)($editing['cgl_policy_number']??$cglData['policy_number']??'');
+ $cglEffectiveDate=(string)($editing['cgl_effective_date']??$cglData['effective_date']??'');
+ $cglExpirationDate=(string)($editing['cgl_expiration_date']??$cglData['expiration_date']??'');
+ $cglLimitFields=[
+  'each_occurrence'=>'Each Occurrence',
+  'damage_to_rented_premises'=>'Damage to Rented Premises',
+  'medical_expense'=>'Medical Expense (Any One Person)',
+  'personal_advertising_injury'=>'Personal & Advertising Injury',
+  'general_aggregate'=>'General Aggregate',
+  'products_completed_operations_aggregate'=>'Products - Completed Operations Aggregate'
+ ];
+ foreach($cglLimitFields as $limitKey=>$limitLabel) {
+  $cglLimits[$limitKey]=(string)($editing['cgl_limit_'.$limitKey]??$cglLimits[$limitKey]??'');
+ }
+
+ $physicalDamageData=is_array($policyCoverage['physical_damage']??null)?$policyCoverage['physical_damage']:[];
+ $physicalDamagePolicyNumber=(string)($editing['physical_damage_policy_number']??$physicalDamageData['policy_number']??'');
+ $physicalDamageEffectiveDate=(string)($editing['physical_damage_effective_date']??$physicalDamageData['effective_date']??'');
+ $physicalDamageExpirationDate=(string)($editing['physical_damage_expiration_date']??$physicalDamageData['expiration_date']??'');
+ $physicalDamageAmount=(string)($editing['physical_damage_amount']??$physicalDamageData['amount']??'');
+ $physicalDamageDescription=(string)($editing['physical_damage_description']??$physicalDamageData['description']??'');
+
+ $motorTruckCargoData=is_array($policyCoverage['motor_truck_cargo']??null)?$policyCoverage['motor_truck_cargo']:[];
+ $motorTruckCargoPolicyNumber=(string)($editing['motor_truck_cargo_policy_number']??$motorTruckCargoData['policy_number']??'');
+ $motorTruckCargoEffectiveDate=(string)($editing['motor_truck_cargo_effective_date']??$motorTruckCargoData['effective_date']??'');
+ $motorTruckCargoExpirationDate=(string)($editing['motor_truck_cargo_expiration_date']??$motorTruckCargoData['expiration_date']??'');
+ $motorTruckCargoAmount=(string)($editing['motor_truck_cargo_amount']??$motorTruckCargoData['amount']??'');
+ $motorTruckCargoDescription=(string)($editing['motor_truck_cargo_description']??$motorTruckCargoData['description']??'');
+
  $aggregateOtherDescription=array_key_exists('aggregate_other_description_present',$editing)?(string)($editing['aggregate_other_description']??''):(string)($policyCoverage['aggregate_other_description']??'');
  $workersCompOtherText=array_key_exists('workers_compensation_other_text_present',$editing)?(string)($editing['workers_compensation_other_text']??''):(string)($policyCoverage['workers_compensation_other_text']??'');
  $deductibleRetentionAmount=array_key_exists('deductible_retention_amount_present',$editing)?(string)($editing['deductible_retention_amount']??''):(string)($policyCoverage['deductible_retention_amount']??'');
@@ -131,11 +165,14 @@ $formUrl=$listUrl.'&action='.$action.($id!==null?'&id='.(int)$id:'');
  ];
 ?>
 <div class="acord-coverage-manager">
- <div class="acord-coverage-heading"><div><h3>ACORD 25 — Type of Insurance</h3><p class="muted">Automobile Liability is currently enabled for this policy workflow. Other coverage sections remain in code for future use.</p></div><span class="count-pill" id="coverage-type-count"><?=in_array('automobile_liability',$selectedInsuranceTypes,true)?'Auto selected':'Select Auto Liability'?></span></div>
+ <div class="acord-coverage-heading"><div><h3>ACORD 25 — Type of Insurance</h3><p class="muted">Select the insurance types that apply. Policy details and limits below are stored with this policy and used on the certificate.</p></div><span class="count-pill" id="coverage-type-count"><?=count(array_intersect($selectedInsuranceTypes,['commercial_general_liability','automobile_liability','physical_damage','motor_truck_cargo']))?> / 4 selected</span></div>
  <input type="hidden" name="insurance_types_present" value="1">
  <input type="hidden" name="coverage_options_present" value="1">
  <input type="hidden" name="combined_single_limit_present" value="1">
- <?php foreach($insuranceTypeKeys as $preservedType): if($preservedType==='automobile_liability'||!in_array($preservedType,$selectedInsuranceTypes,true))continue;
+ <input type="hidden" name="cgl_data_present" value="1">
+ <input type="hidden" name="physical_damage_data_present" value="1">
+ <input type="hidden" name="motor_truck_cargo_data_present" value="1">
+ <?php foreach($insuranceTypeKeys as $preservedType): if(in_array($preservedType,['commercial_general_liability','automobile_liability','physical_damage','motor_truck_cargo'],true)||!in_array($preservedType,$selectedInsuranceTypes,true))continue;
   $preservedCarrier=(string)($selectedInsuranceCarriers[$preservedType]??'A');
   if(!in_array($preservedCarrier,['A','B','C','D','E','F'],true))$preservedCarrier='A';
  ?>
@@ -145,10 +182,10 @@ $formUrl=$listUrl.'&action='.$action.($id!==null?'&id='.(int)$id:'');
    <input type="hidden" name="coverage_options[<?=e($preservedType)?>][]" value="<?=e((string)$preservedOption)?>">
   <?php endforeach; ?>
  <?php endforeach; ?>
- <div class="acord-coverage-cards acord-coverage-cards-auto-only">
+ <div class="acord-coverage-cards acord-coverage-cards-policy">
  <?php foreach($insuranceTypeLabels as $typeKey=>$typeLabel):
-  // Keep other ACORD coverage form code for future enablement, but show Auto Liability only for now.
-  if($typeKey!=='automobile_liability')continue;
+  // Preserve legacy future sections in code, but expose only the four types requested by the client.
+  if(!in_array($typeKey,['commercial_general_liability','automobile_liability','physical_damage','motor_truck_cargo'],true))continue;
   $typeSelected=in_array($typeKey,$selectedInsuranceTypes,true);
   $typeCarrier=(string)($selectedInsuranceCarriers[$typeKey]??'A');
   if(!in_array($typeCarrier,['A','B','C','D','E','F'],true))$typeCarrier='A';
@@ -169,14 +206,72 @@ $formUrl=$listUrl.'&action='.$action.($id!==null?'&id='.(int)$id:'');
     <?php endforeach;?>
    </div>
    <?php if($typeKey==='commercial_general_liability'):?>
-    <label class="acord-extra-field">Other description
-     <input type="text" name="aggregate_other_description" value="<?=e($aggregateOtherDescription)?>" maxlength="180" placeholder="Describe other aggregate basis">
-    </label>
+    <div class="acord-fields-grid acord-policy-fields">
+     <label>Policy Number
+      <input data-coverage-detail type="text" name="cgl_policy_number" value="<?=e($cglPolicyNumber)?>" maxlength="100" placeholder="Commercial General Liability policy number">
+     </label>
+     <label>Policy Start Date
+      <input data-coverage-detail type="date" name="cgl_effective_date" value="<?=e($cglEffectiveDate)?>">
+     </label>
+     <label>Policy End Date
+      <input data-coverage-detail type="date" name="cgl_expiration_date" value="<?=e($cglExpirationDate)?>">
+     </label>
+    </div>
+    <div class="acord-limit-panel">
+     <strong>Limits</strong>
+     <div class="acord-limits-grid">
+      <?php foreach($cglLimitFields as $limitKey=>$limitLabel): ?>
+       <label><?=e($limitLabel)?>
+        <span class="acord-money-input"><span>$</span><input data-coverage-detail type="text" inputmode="decimal" name="cgl_limit_<?=e($limitKey)?>" value="<?=e((string)($cglLimits[$limitKey]??''))?>" placeholder="0.00" maxlength="20"></span>
+       </label>
+      <?php endforeach; ?>
+     </div>
+    </div>
    <?php elseif($typeKey==='automobile_liability'):?>
     <label class="acord-limit-field">Combined Single Limit (Each Accident)
      <span class="acord-money-input"><span>$</span><input type="text" inputmode="decimal" name="combined_single_limit" value="<?=e($combinedSingleLimit)?>" placeholder="e.g. 1000000" maxlength="20" aria-describedby="combined-limit-help"></span>
      <small id="combined-limit-help">Enter the Auto Liability limit. Commas and a leading $ are accepted.</small>
     </label>
+   <?php elseif($typeKey==='physical_damage'):?>
+    <div class="acord-fields-grid acord-policy-fields">
+     <label>Policy Number
+      <input data-coverage-detail type="text" name="physical_damage_policy_number" value="<?=e($physicalDamagePolicyNumber)?>" maxlength="100" placeholder="Physical Damage policy number">
+     </label>
+     <label>Policy Start Date
+      <input data-coverage-detail type="date" name="physical_damage_effective_date" value="<?=e($physicalDamageEffectiveDate)?>">
+     </label>
+     <label>Policy End Date
+      <input data-coverage-detail type="date" name="physical_damage_expiration_date" value="<?=e($physicalDamageExpirationDate)?>">
+     </label>
+    </div>
+    <div class="acord-fields-grid acord-custom-insurance-extra">
+     <label>Amount / Limit
+      <span class="acord-money-input"><span>$</span><input data-coverage-detail type="text" inputmode="decimal" name="physical_damage_amount" value="<?=e($physicalDamageAmount)?>" maxlength="20" placeholder="0.00"></span>
+     </label>
+     <label class="acord-description-input">Description
+      <input data-coverage-detail type="text" name="physical_damage_description" value="<?=e($physicalDamageDescription)?>" maxlength="250" placeholder="Physical damage coverage description">
+     </label>
+    </div>
+   <?php elseif($typeKey==='motor_truck_cargo'):?>
+    <div class="acord-fields-grid acord-policy-fields">
+     <label>Policy Number
+      <input data-coverage-detail type="text" name="motor_truck_cargo_policy_number" value="<?=e($motorTruckCargoPolicyNumber)?>" maxlength="100" placeholder="Motor Truck Cargo policy number">
+     </label>
+     <label>Policy Start Date
+      <input data-coverage-detail type="date" name="motor_truck_cargo_effective_date" value="<?=e($motorTruckCargoEffectiveDate)?>">
+     </label>
+     <label>Policy End Date
+      <input data-coverage-detail type="date" name="motor_truck_cargo_expiration_date" value="<?=e($motorTruckCargoExpirationDate)?>">
+     </label>
+    </div>
+    <div class="acord-fields-grid acord-custom-insurance-extra">
+     <label>Amount / Limit
+      <span class="acord-money-input"><span>$</span><input data-coverage-detail type="text" inputmode="decimal" name="motor_truck_cargo_amount" value="<?=e($motorTruckCargoAmount)?>" maxlength="20" placeholder="0.00"></span>
+     </label>
+     <label class="acord-description-input">Description
+      <input data-coverage-detail type="text" name="motor_truck_cargo_description" value="<?=e($motorTruckCargoDescription)?>" maxlength="250" placeholder="Motor truck cargo coverage description">
+     </label>
+    </div>
    <?php elseif($typeKey==='umbrella_liability'):?>
     <label class="acord-extra-field">Shared Deductible / Retention Amount (Umbrella / Excess)
      <input type="text" name="deductible_retention_amount" value="<?=e($deductibleRetentionAmount)?>" maxlength="30" placeholder="Amount, if applicable">
@@ -209,6 +304,7 @@ $formUrl=$listUrl.'&action='.$action.($id!==null?'&id='.(int)$id:'');
   card.classList.toggle('is-selected',selected);
   card.querySelectorAll('[data-insurer-select]').forEach(input=>{input.disabled=!selected;});
   card.querySelectorAll('[data-coverage-option]').forEach(input=>{input.disabled=!selected;});
+  card.querySelectorAll('[data-coverage-detail]').forEach(input=>{input.disabled=!selected;});
   const aggregateText=card.querySelector('input[name="aggregate_other_description"]');
   if(aggregateText)aggregateText.disabled=!selected;
   const limitInput=card.querySelector('input[name="combined_single_limit"]');
@@ -228,9 +324,9 @@ $formUrl=$listUrl.'&action='.$action.($id!==null?'&id='.(int)$id:'');
   const deductibleOrRetention=!!root.querySelector('input[data-coverage-option="deductible"]:checked, input[data-coverage-option="retention"]:checked');
   const sharedAmount=root.querySelector('input[name="deductible_retention_amount"]');
   if(sharedAmount)sharedAmount.disabled=!(umbrellaSelected||excessSelected)||!deductibleOrRetention;
-  if(count)count.textContent=cards.some(card=>card.querySelector('.acord-type-check input').checked)?'Auto selected':'Select Auto Liability';
+  if(count)count.textContent=cards.filter(card=>card.querySelector('.acord-type-check input').checked).length+' / 4 selected';
  }
- root.querySelectorAll('.acord-type-check input,.acord-coverage-options input,.acord-excluded-options input').forEach(input=>input.addEventListener('change',refresh));
+ root.querySelectorAll('.acord-type-check input,.acord-coverage-options input,.acord-excluded-options input,[data-coverage-detail]').forEach(input=>input.addEventListener('change',refresh));
  refresh();
 })();
 </script>
