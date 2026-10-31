@@ -194,7 +194,7 @@ $drivers = [];
 $coverages = [];
 if ($selectedPolicy) {
     $vehicleQ = db()->prepare(
-        'SELECT v.id, v.vin, v.unit_number, v.vehicle_type, v.make, v.model, v.model_year, v.value_amount
+        'SELECT v.id, v.vin, v.unit_number, v.vehicle_type, v.make, v.model, v.model_year, v.value_amount, v.carrier_selections
          FROM policy_vehicles pv
          INNER JOIN vehicles v ON v.id = pv.vehicle_id
          WHERE pv.policy_id = :policy_id AND v.insured_id = :insured_id AND v.status = "active"
@@ -206,7 +206,7 @@ if ($selectedPolicy) {
         // The current agency form links vehicles to insureds. Until individual policy assignments are made,
         // show active vehicles owned by this insured.
         $vehicleQ = db()->prepare(
-            'SELECT id, vin, unit_number, vehicle_type, make, model, model_year, value_amount
+            'SELECT id, vin, unit_number, vehicle_type, make, model, model_year, value_amount, carrier_selections
              FROM vehicles WHERE insured_id = :insured_id AND status = "active" ORDER BY id DESC'
         );
         $vehicleQ->execute(['insured_id' => $insuredId]);
@@ -214,7 +214,7 @@ if ($selectedPolicy) {
     }
 
     $driverQ = db()->prepare(
-        'SELECT d.id, d.full_name, d.license_number, d.license_state, d.is_excluded
+        'SELECT d.id, d.full_name, d.license_number, d.license_state, d.is_excluded, d.carrier_selections
          FROM policy_drivers pd
          INNER JOIN drivers d ON d.id = pd.driver_id
          WHERE pd.policy_id = :policy_id AND d.insured_id = :insured_id AND d.status = "active"
@@ -225,12 +225,46 @@ if ($selectedPolicy) {
     if (!$drivers) {
         // Agency driver records currently belong to an insured; use those records as the fallback.
         $driverQ = db()->prepare(
-            'SELECT id, full_name, license_number, license_state, is_excluded
+            'SELECT id, full_name, license_number, license_state, is_excluded, carrier_selections
              FROM drivers WHERE insured_id = :insured_id AND status = "active" ORDER BY full_name'
         );
         $driverQ->execute(['insured_id' => $insuredId]);
         $drivers = $driverQ->fetchAll();
     }
+
+    // Resolve the saved policy-letter keys to company names only for customer-facing display.
+    $carrierCompanyNamesByKey = [];
+    foreach ($policies as $carrierPolicy) {
+        foreach (range('A', 'F') as $letter) {
+            $suffix = strtolower($letter);
+            $companyName = trim((string)($carrierPolicy['insurer_' . $suffix . '_name'] ?? ''));
+            if ($companyName !== '') {
+                $carrierCompanyNamesByKey[(int)$carrierPolicy['id'] . ':' . $letter] = $companyName;
+            }
+        }
+    }
+    $attachCustomerCarrierNames = static function (array $records) use ($carrierCompanyNamesByKey): array {
+        foreach ($records as &$record) {
+            $rawSelections = $record['carrier_selections'] ?? [];
+            if (is_string($rawSelections)) {
+                $decodedSelections = json_decode($rawSelections, true);
+                $rawSelections = is_array($decodedSelections) ? $decodedSelections : [];
+            }
+            $companyNames = [];
+            if (is_array($rawSelections)) {
+                foreach ($rawSelections as $selectionKey) {
+                    if (is_string($selectionKey) && isset($carrierCompanyNamesByKey[$selectionKey])) {
+                        $companyNames[] = $carrierCompanyNamesByKey[$selectionKey];
+                    }
+                }
+            }
+            $record['carrier_names'] = array_values(array_unique($companyNames));
+        }
+        unset($record);
+        return $records;
+    };
+    $vehicles = $attachCustomerCarrierNames($vehicles);
+    $drivers = $attachCustomerCarrierNames($drivers);
 
     if (!empty($selectedPolicy['coverage_data'])) {
         $decoded = json_decode((string)$selectedPolicy['coverage_data'], true);
@@ -542,16 +576,16 @@ $flash = getFlash();
 
             <div class="policy-bottom-grid">
                 <section class="panel policy-table-panel"><div class="section-heading"><h2>Vehicles <span class="count-pill"><?= count($vehicles) ?></span></h2><span class="muted small">Covered / insured vehicles</span></div>
-                    <div class="table-wrap"><table><thead><tr><th>VIN</th><th>Make</th><th>Model</th><th>Year</th><th>Unit</th><th>Value</th></tr></thead><tbody>
-                    <?php foreach ($vehicles as $vehicle): ?><tr><td class="mono"><?= customerText($vehicle['vin']) ?></td><td><?= customerText($vehicle['make'] ?: '—') ?></td><td><?= customerText($vehicle['model'] ?: '—') ?></td><td><?= customerText($vehicle['model_year'] ?: '—') ?></td><td><?= customerText($vehicle['unit_number'] ?: '—') ?></td><td><?= customerMoney($vehicle['value_amount']) ?></td></tr><?php endforeach; ?>
-                    <?php if (!$vehicles): ?><tr><td colspan="6" class="empty-cell">No vehicles have been added to this insured account.</td></tr><?php endif; ?>
+                    <div class="table-wrap"><table><thead><tr><th>VIN</th><th>Make</th><th>Model</th><th>Year</th><th>Unit</th><th>Value</th><th>Insurance Carrier</th></tr></thead><tbody>
+                    <?php foreach ($vehicles as $vehicle): ?><tr><td class="mono"><?= customerText($vehicle['vin']) ?></td><td><?= customerText($vehicle['make'] ?: '—') ?></td><td><?= customerText($vehicle['model'] ?: '—') ?></td><td><?= customerText($vehicle['model_year'] ?: '—') ?></td><td><?= customerText($vehicle['unit_number'] ?: '—') ?></td><td><?= customerMoney($vehicle['value_amount']) ?></td><td><?= customerText($vehicle['carrier_names'] ? implode(', ', $vehicle['carrier_names']) : '—') ?></td></tr><?php endforeach; ?>
+                    <?php if (!$vehicles): ?><tr><td colspan="7" class="empty-cell">No vehicles have been added to this insured account.</td></tr><?php endif; ?>
                     </tbody></table></div>
                 </section>
 
                 <section class="panel policy-table-panel"><div class="section-heading"><h2>Drivers <span class="count-pill"><?= count($drivers) ?></span></h2><span class="muted small">Drivers on file</span></div>
-                    <div class="table-wrap"><table><thead><tr><th>Name</th><th>License</th><th>State</th><th>Excluded</th></tr></thead><tbody>
-                    <?php foreach ($drivers as $driver): ?><tr><td><?= customerText($driver['full_name']) ?></td><td><?= customerText($driver['license_number'] ?: '—') ?></td><td><?= customerText($driver['license_state'] ?: '—') ?></td><td><span class="status-pill <?= empty($driver['is_excluded']) ? 'is-active' : 'is-inactive' ?>"><?= empty($driver['is_excluded']) ? 'No' : 'Yes' ?></span></td></tr><?php endforeach; ?>
-                    <?php if (!$drivers): ?><tr><td colspan="4" class="empty-cell">No drivers have been added to this insured account.</td></tr><?php endif; ?>
+                    <div class="table-wrap"><table><thead><tr><th>Name</th><th>License</th><th>State</th><th>Excluded</th><th>Insurance Carrier</th></tr></thead><tbody>
+                    <?php foreach ($drivers as $driver): ?><tr><td><?= customerText($driver['full_name']) ?></td><td><?= customerText($driver['license_number'] ?: '—') ?></td><td><?= customerText($driver['license_state'] ?: '—') ?></td><td><span class="status-pill <?= empty($driver['is_excluded']) ? 'is-active' : 'is-inactive' ?>"><?= empty($driver['is_excluded']) ? 'No' : 'Yes' ?></span></td><td><?= customerText($driver['carrier_names'] ? implode(', ', $driver['carrier_names']) : '—') ?></td></tr><?php endforeach; ?>
+                    <?php if (!$drivers): ?><tr><td colspan="5" class="empty-cell">No drivers have been added to this insured account.</td></tr><?php endif; ?>
                     </tbody></table></div>
                 </section>
             </div>
