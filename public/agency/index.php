@@ -5,6 +5,25 @@ use AcePortal\Auth;
 $user=Auth::requireRoles(['admin','staff']);
 $safeCount=static function(string $sql):int{try{return (int)db()->query($sql)->fetchColumn();}catch(\Throwable $e){error_log('Dashboard count query failed: '.$e->getMessage());return 0;}};
 $counts=[];foreach(['insureds'=>'Insured Customers','vehicles'=>'Vehicles','policies'=>'Policies','drivers'=>'Drivers'] as $table=>$label)$counts[$label]=(int)db()->query('SELECT COUNT(*) FROM '.$table)->fetchColumn();
+$policyExpiringCount=0;
+$expiringPolicies=[];
+try {
+ $q=db()->query(
+  "SELECT p.id,p.policy_number,p.expiration_date,
+          COALESCE(NULLIF(p.insurer_a_name,''),NULLIF(p.carrier_name,''),'—') AS carrier_name,
+          i.legal_name,i.dot_number,i.email,i.phone,
+          DATEDIFF(p.expiration_date,CURDATE()) AS days_remaining
+   FROM policies p
+   INNER JOIN insureds i ON i.id=p.insured_id
+   WHERE p.status='active'
+     AND p.expiration_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(),INTERVAL 7 DAY)
+   ORDER BY p.expiration_date ASC,i.legal_name ASC"
+ );
+ $expiringPolicies=$q->fetchAll();
+ $policyExpiringCount=count($expiringPolicies);
+} catch(\\Throwable $e) {
+ error_log('Dashboard expiring policies query failed: '.$e->getMessage());
+}
 $financeTotal=$safeCount('SELECT COUNT(*) FROM finance_billing');
 $financePastDue=$safeCount("SELECT COUNT(*) FROM finance_billing WHERE status='Past Due'");
 $financeDueSoon=$safeCount("SELECT COUNT(*) FROM finance_billing WHERE next_due_date IS NOT NULL AND next_due_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY) AND status NOT IN ('Paid Off','Cancelled')");
@@ -26,9 +45,40 @@ $recordModules=[
 <a class="dashboard-stat stat-claims" href="<?=e(appUrl('/agency/claims.php'))?>"><span class="dashboard-stat-icon">CL</span><span class="dashboard-stat-label">Total Claims</span><strong><?=$claimTotal?></strong><small>Open claims register →</small></a>
 <a class="dashboard-stat" href="<?=e(appUrl('/agency/claims.php'))?>"><span class="dashboard-stat-icon">IP</span><span class="dashboard-stat-label">Active Claims</span><strong><?=$claimActive?></strong><small>In progress →</small></a>
 <a class="dashboard-stat" href="<?=e(appUrl('/agency/finance.php'))?>"><span class="dashboard-stat-icon">PD</span><span class="dashboard-stat-label">Past-Due Finance</span><strong><?=$financePastDue?></strong><small>$<?=number_format($financePastDueAmount,2)?> pending →</small></a>
+<a class="dashboard-stat" href="#expiring-policies"><span class="dashboard-stat-icon">EX</span><span class="dashboard-stat-label">Policies Expiring</span><strong><?=$policyExpiringCount?></strong><small>Within next 7 days →</small></a>
 <a class="dashboard-stat" href="<?=e(appUrl('/agency/finance.php'))?>"><span class="dashboard-stat-icon">7D</span><span class="dashboard-stat-label">Due in Next 7 Days</span><strong><?=$financeDueSoon?></strong><small>Review due dates →</small></a>
 <a class="dashboard-stat" href="<?=e(appUrl('/agency/claims.php?status=Closed'))?>"><span class="dashboard-stat-icon">OK</span><span class="dashboard-stat-label">Closed Claims</span><strong><?=$claimClosed?></strong><small>View completed claims →</small></a>
 </div></section>
+<section class="dashboard-section" id="expiring-policies">
+<div class="section-title-row">
+ <div><h2>Policies Expiring in Next 7 Days</h2><p class="muted">Active policies expiring today through the next seven calendar days, sorted by expiry date.</p></div>
+ <a class="btn light small-btn" href="<?=e(appUrl('/agency/crud.php?entity=policies'))?>">View All Policies</a>
+</div>
+<div class="module-card">
+ <?php if ($expiringPolicies): ?>
+ <div class="table-wrap">
+  <table>
+   <thead><tr><th>Customer / Insured</th><th>DOT Number</th><th>Policy Number</th><th>Insurance Carrier</th><th>Expiry Date</th><th>Time Left</th><th>Contact</th></tr></thead>
+   <tbody>
+    <?php foreach ($expiringPolicies as $policy): ?>
+     <tr>
+      <td><strong><?=e((string)$policy['legal_name'])?></strong></td>
+      <td><?=e((string)$policy['dot_number'])?></td>
+      <td><?=e((string)$policy['policy_number'])?></td>
+      <td><?=e((string)$policy['carrier_name'])?></td>
+      <td><strong><?=e(date('M j, Y',strtotime((string)$policy['expiration_date'])))?></strong></td>
+      <td><strong><?=((int)$policy['days_remaining'])===0?'Expires today':((int)$policy['days_remaining']).' day(s)'?></strong></td>
+      <td><?php if (!empty($policy['email'])): ?><a href="mailto:<?=e((string)$policy['email'])?>"><?=e((string)$policy['email'])?></a><?php endif; ?><?php if (!empty($policy['phone'])): ?><?=!empty($policy['email'])?' · ':''?><?=e((string)$policy['phone'])?><?php endif; ?><?php if (empty($policy['email'])&&empty($policy['phone'])): ?>—<?php endif; ?></td>
+     </tr>
+    <?php endforeach; ?>
+   </tbody>
+  </table>
+ </div>
+ <?php else: ?>
+  <p class="muted" style="margin:0">No active policies are expiring within the next 7 days.</p>
+ <?php endif; ?>
+</div>
+</section>
 <section class="dashboard-section"><div class="section-title-row"><div><h2>Finance & Claims</h2><p class="muted">Primary work areas for billing and claim handling.</p></div></div><div class="dashboard-work-grid">
 <a class="dashboard-work-card dashboard-work-finance" href="<?=e(appUrl('/agency/finance.php'))?>"><div class="dashboard-work-top"><span class="dashboard-work-icon">FN</span><span class="dashboard-open-link">Open module ↗</span></div><h3>Finance Billing Manage</h3><p>Manage finance companies, installments, monthly amounts, due dates, autopay and past-due balances.</p><div class="dashboard-work-footer"><span><strong><?=$financeTotal?></strong> records</span><span><strong><?=$financePastDue?></strong> past due</span><span><strong><?=$financeDueSoon?></strong> due soon</span></div></a>
 <a class="dashboard-work-card dashboard-work-claims" href="<?=e(appUrl('/agency/claims.php'))?>"><div class="dashboard-work-top"><span class="dashboard-work-icon">CL</span><span class="dashboard-open-link">Open module ↗</span></div><h3>Claims Management</h3><p>Track insured customers, loss dates, coverage, adjusters, status, latest updates and next actions.</p><div class="dashboard-work-footer"><span><strong><?=$claimTotal?></strong> total</span><span><strong><?=$claimActive?></strong> active</span><span><strong><?=$claimClosed?></strong> closed</span></div></a>
