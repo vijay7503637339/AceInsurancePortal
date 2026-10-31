@@ -806,6 +806,11 @@ $flash = getFlash();
                                         <div class="customer-coverage-title">
                                             <h3><?= customerText($coverage['name']) ?></h3>
                                             <span><?= $coverage['policy_number'] !== '' ? 'Policy #'.customerText($coverage['policy_number']) : 'Policy number not added' ?></span>
+                                            <?php if ($coverage['options']): ?>
+                                                <div class="customer-coverage-options customer-coverage-options-top">
+                                                    <div><?php foreach ($coverage['options'] as $option): ?><span><?= customerText($option) ?></span><?php endforeach; ?></div>
+                                                </div>
+                                            <?php endif; ?>
                                         </div>
                                     </div>
                                     <span class="customer-coverage-status <?= customerText($coverage['status_class']) ?>"><?= customerText($coverage['status']) ?></span>
@@ -822,9 +827,6 @@ $flash = getFlash();
                                             <div><span><?= customerText($highlightLabel) ?></span><strong><?= customerText($highlightValue) ?></strong></div>
                                         <?php endforeach; ?>
                                     </div>
-                                <?php endif; ?>
-                                <?php if ($coverage['options']): ?>
-                                    <div class="customer-coverage-options"><span>Included coverage options</span><div><?php foreach ($coverage['options'] as $option): ?><span><?= customerText($option) ?></span><?php endforeach; ?></div></div>
                                 <?php endif; ?>
                                 <?php if ($coverage['details'] || $coverage['description'] !== ''): ?>
                                     <details class="customer-coverage-more">
