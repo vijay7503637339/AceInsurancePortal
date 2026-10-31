@@ -22,6 +22,44 @@ final class Crud {
    if($field==='dot_number'&&$v!==null)$v=preg_replace('/\\s+/','',(string)$v);
    $data[$field]=$v;
   }
+  // Store carrier selections for a vehicle/driver only when they belong to the chosen insured customer's policies.
+  if(in_array($key,['vehicles','drivers'],true)&&array_key_exists('carrier_selections_present',$input)) {
+   $insuredId=(int)($data['insured_id']??0);
+   if($insuredId<1) throw new \InvalidArgumentException('Select an insured customer before choosing carriers.');
+
+   $policyQuery=\db()->prepare(
+    'SELECT id, insurer_a_name, insurer_b_name, insurer_c_name, insurer_d_name, insurer_e_name, insurer_f_name
+     FROM policies
+     WHERE insured_id=:insured_id'
+   );
+   $policyQuery->execute(['insured_id'=>$insuredId]);
+   $allowedSelections=[];
+   foreach($policyQuery->fetchAll() as $policy) {
+    foreach(range('A','F') as $letter) {
+     $name=trim((string)($policy['insurer_'.strtolower($letter).'_name']??''));
+     if($name!=='') $allowedSelections[(int)$policy['id'].':'.$letter]=true;
+    }
+   }
+
+   $requestedSelections=$input['carrier_selections']??[];
+   if(!is_array($requestedSelections)) throw new \InvalidArgumentException('Invalid insurance carrier selection.');
+   if(count($requestedSelections)>100) throw new \InvalidArgumentException('Select no more than 100 insurance carriers.');
+
+   $validatedSelections=[];
+   foreach($requestedSelections as $selection) {
+    if(!is_string($selection)||!preg_match('/^([1-9][0-9]*):([A-F])$/',trim($selection))) {
+     throw new \InvalidArgumentException('One of the selected insurance carriers is invalid.');
+    }
+    $selection=trim($selection);
+    if(!isset($allowedSelections[$selection])) {
+     throw new \InvalidArgumentException('A selected carrier does not belong to the chosen customer’s policies. Refresh the form and try again.');
+    }
+    $validatedSelections[]=$selection;
+   }
+
+   $data['carrier_selections']=json_encode(array_values(array_unique($validatedSelections)),JSON_THROW_ON_ERROR);
+  }
+
   // Keep carrier_name synchronized for legacy pages/data integrations; Insurer A is the primary carrier.
   if($key==='policies') {
    $data['carrier_name']=$data['insurer_a_name']??null;
