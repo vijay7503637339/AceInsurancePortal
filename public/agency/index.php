@@ -8,32 +8,116 @@ $counts=[];foreach(['insureds'=>'Insured Customers','vehicles'=>'Vehicles','poli
 $policyExpiringCount=0;
 $expiringPolicies=[];
 try {
- // Policy expiry may be stored in the main column or per-coverage data.
+ // Each selected coverage is evaluated against its own end date.
+ // Automobile Liability dates are stored on policies; CGL, Physical Damage
+ // and Motor Truck Cargo dates are stored in their respective coverage_data objects.
+ $today=new \DateTimeImmutable('today',new \DateTimeZone('Asia/Kolkata'));
+ $lastDay=$today->modify('+7 days');
+ $coverageDefinitions=[
+  'commercial_general_liability'=>[
+   'label'=>'Commercial General Liability',
+   'data_key'=>'commercial_general_liability',
+   'start_key'=>'effective_date',
+   'end_key'=>'expiration_date'
+  ],
+  'automobile_liability'=>[
+   'label'=>'Automobile Liability',
+   'data_key'=>null,
+   'start_key'=>'effective_date',
+   'end_key'=>'expiration_date'
+  ],
+  'physical_damage'=>[
+   'label'=>'Physical Damage',
+   'data_key'=>'physical_damage',
+   'start_key'=>'effective_date',
+   'end_key'=>'expiration_date'
+  ],
+  'motor_truck_cargo'=>[
+   'label'=>'Motor Truck Cargo',
+   'data_key'=>'motor_truck_cargo',
+   'start_key'=>'effective_date',
+   'end_key'=>'expiration_date'
+  ]
+ ];
+
  $q=db()->query(
-  "SELECT expiring.id,expiring.policy_number,expiring.expiration_date,
-          COALESCE(NULLIF(expiring.insurer_a_name,''),NULLIF(expiring.carrier_name,''),'—') AS carrier_name,
-          expiring.status,
-          i.legal_name,i.dot_number,i.email,i.phone,
-          DATEDIFF(expiring.expiration_date,CURDATE()) AS days_remaining
-   FROM (
-     SELECT p.id,p.insured_id,p.policy_number,p.status,p.insurer_a_name,p.carrier_name,
-            LEAST(
-              COALESCE(p.expiration_date,CAST('9999-12-31' AS DATE)),
-              COALESCE(STR_TO_DATE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(p.coverage_data,'$.commercial_general_liability.expiration_date')),''),'%Y-%m-%d'),CAST('9999-12-31' AS DATE)),
-              COALESCE(STR_TO_DATE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(p.coverage_data,'$.physical_damage.expiration_date')),''),'%Y-%m-%d'),CAST('9999-12-31' AS DATE)),
-              COALESCE(STR_TO_DATE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(p.coverage_data,'$.motor_truck_cargo.expiration_date')),''),'%Y-%m-%d'),CAST('9999-12-31' AS DATE))
-            ) AS expiration_date
-     FROM policies p
-     WHERE LOWER(COALESCE(p.status,'')) IN ('active','draft')
-   ) AS expiring
-   INNER JOIN insureds i ON i.id=expiring.insured_id
-   WHERE expiring.expiration_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(),INTERVAL 7 DAY)
-   ORDER BY expiring.expiration_date ASC,i.legal_name ASC"
+  "SELECT p.id,p.policy_number,p.effective_date,p.expiration_date,p.status,
+          p.carrier_name,p.insurer_a_name,p.insurer_b_name,p.insurer_c_name,
+          p.insurer_d_name,p.insurer_e_name,p.insurer_f_name,p.coverage_data,
+          i.legal_name,i.dot_number,i.email,i.phone
+   FROM policies p
+   INNER JOIN insureds i ON i.id=p.insured_id
+   WHERE LOWER(COALESCE(p.status,'')) <> 'cancelled'
+   ORDER BY i.legal_name ASC,p.policy_number ASC"
  );
- $expiringPolicies=$q->fetchAll();
+ $policyRows=$q->fetchAll();
+ foreach($policyRows as $policy) {
+  $coverageData=[];
+  if(!empty($policy['coverage_data'])) {
+   $decoded=json_decode((string)$policy['coverage_data'],true);
+   if(is_array($decoded)) $coverageData=$decoded;
+  }
+  $selectedTypes=is_array($coverageData['insurance_types']??null)
+   ? array_values(array_unique(array_map('strval',$coverageData['insurance_types'])))
+   : [];
+
+  foreach($coverageDefinitions as $typeKey=>$definition) {
+   if(!in_array($typeKey,$selectedTypes,true)) continue;
+
+   if($definition['data_key']===null) {
+    // Automobile Liability has its own dates in the main policy fields.
+    $coverageDates=$policy;
+   } else {
+    $coverageDates=is_array($coverageData[$definition['data_key']]??null)
+     ? $coverageData[$definition['data_key']]
+     : [];
+   }
+
+   $rawStart=trim((string)($coverageDates[$definition['start_key']]??''));
+   $rawEnd=trim((string)($coverageDates[$definition['end_key']]??''));
+   if($rawEnd==='') continue;
+
+   $endDate=\DateTimeImmutable::createFromFormat('!Y-m-d',$rawEnd,new \DateTimeZone('Asia/Kolkata'));
+   if(!$endDate||$endDate->format('Y-m-d')!==$rawEnd) continue;
+   if($endDate<$today||$endDate>$lastDay) continue;
+
+   $startDate=null;
+   if($rawStart!=='') {
+    $parsedStart=\DateTimeImmutable::createFromFormat('!Y-m-d',$rawStart,new \DateTimeZone('Asia/Kolkata'));
+    if($parsedStart&&$parsedStart->format('Y-m-d')===$rawStart) $startDate=$parsedStart;
+   }
+
+   $carrierLetter=strtoupper(trim((string)($coverageData['insurance_carriers'][$typeKey]??'A')));
+   if(!in_array($carrierLetter,['A','B','C','D','E','F'],true)) $carrierLetter='A';
+   $carrierField='insurer_'.strtolower($carrierLetter).'_name';
+   $carrierName=trim((string)($policy[$carrierField]??''));
+   if($carrierName==='') $carrierName=trim((string)($policy['insurer_a_name']??''));
+   if($carrierName==='') $carrierName=trim((string)($policy['carrier_name']??''));
+   if($carrierName==='') $carrierName='—';
+
+   $expiringPolicies[]=[
+    'policy_id'=>(int)$policy['id'],
+    'legal_name'=>(string)$policy['legal_name'],
+    'dot_number'=>(string)$policy['dot_number'],
+    'policy_number'=>(string)$policy['policy_number'],
+    'coverage_type'=>$definition['label'],
+    'carrier_name'=>$carrierName,
+    'status'=>(string)($policy['status']??''),
+    'start_date'=>$startDate?$startDate->format('Y-m-d'):'',
+    'expiration_date'=>$endDate->format('Y-m-d'),
+    'days_remaining'=>(int)$today->diff($endDate)->format('%a'),
+    'email'=>(string)($policy['email']??''),
+    'phone'=>(string)($policy['phone']??'')
+   ];
+  }
+ }
+ usort($expiringPolicies,static function(array $a,array $b):int {
+  return [$a['expiration_date'],$a['legal_name'],$a['policy_number'],$a['coverage_type']]
+   <=> [$b['expiration_date'],$b['legal_name'],$b['policy_number'],$b['coverage_type']];
+ });
  $policyExpiringCount=count($expiringPolicies);
 } catch(\Throwable $e) {
- error_log('Dashboard expiring policies query failed: '.$e->getMessage());
+ error_log('Dashboard expiring coverage query failed: '.$e->getMessage());
 }
 $financeTotal=$safeCount('SELECT COUNT(*) FROM finance_billing');
 $financePastDue=$safeCount("SELECT COUNT(*) FROM finance_billing WHERE status='Past Due'");
@@ -56,38 +140,40 @@ $recordModules=[
 <a class="dashboard-stat stat-claims" href="<?=e(appUrl('/agency/claims.php'))?>"><span class="dashboard-stat-icon">CL</span><span class="dashboard-stat-label">Total Claims</span><strong><?=$claimTotal?></strong><small>Open claims register →</small></a>
 <a class="dashboard-stat" href="<?=e(appUrl('/agency/claims.php'))?>"><span class="dashboard-stat-icon">IP</span><span class="dashboard-stat-label">Active Claims</span><strong><?=$claimActive?></strong><small>In progress →</small></a>
 <a class="dashboard-stat" href="<?=e(appUrl('/agency/finance.php'))?>"><span class="dashboard-stat-icon">PD</span><span class="dashboard-stat-label">Past-Due Finance</span><strong><?=$financePastDue?></strong><small>$<?=number_format($financePastDueAmount,2)?> pending →</small></a>
-<a class="dashboard-stat" href="#expiring-policies"><span class="dashboard-stat-icon">EX</span><span class="dashboard-stat-label">Policies Expiring</span><strong><?=$policyExpiringCount?></strong><small>Within next 7 days →</small></a>
+<a class="dashboard-stat" href="#expiring-policies"><span class="dashboard-stat-icon">EX</span><span class="dashboard-stat-label">Coverages Expiring</span><strong><?=$policyExpiringCount?></strong><small>Within next 7 days →</small></a>
 <a class="dashboard-stat" href="<?=e(appUrl('/agency/finance.php'))?>"><span class="dashboard-stat-icon">7D</span><span class="dashboard-stat-label">Due in Next 7 Days</span><strong><?=$financeDueSoon?></strong><small>Review due dates →</small></a>
 <a class="dashboard-stat" href="<?=e(appUrl('/agency/claims.php?status=Closed'))?>"><span class="dashboard-stat-icon">OK</span><span class="dashboard-stat-label">Closed Claims</span><strong><?=$claimClosed?></strong><small>View completed claims →</small></a>
 </div></section>
 <section class="dashboard-section" id="expiring-policies">
 <div class="section-title-row">
- <div><h2>Policies Expiring in Next 7 Days</h2><p class="muted">Active and draft policies with an upcoming expiry in the next seven calendar days, including coverage-specific end dates.</p></div>
+ <div><h2>Insurance Coverages Expiring in Next 7 Days</h2><p class="muted">Each selected coverage is listed separately using its own End Date, compared with today through the next seven days.</p></div>
  <a class="btn light small-btn" href="<?=e(appUrl('/agency/crud.php?entity=policies'))?>">View All Policies</a>
 </div>
 <div class="module-card">
  <?php if ($expiringPolicies): ?>
  <div class="table-wrap">
   <table>
-   <thead><tr><th>Customer / Insured</th><th>DOT Number</th><th>Policy Number</th><th>Insurance Carrier</th><th>Status</th><th>Expiry Date</th><th>Time Left</th><th>Contact</th></tr></thead>
+   <thead><tr><th>Customer / Insured</th><th>DOT Number</th><th>Policy Number</th><th>Type of Insurance</th><th>Insurance Carrier</th><th>Policy Status</th><th>Start Date</th><th>End Date</th><th>Days Left</th><th>Contact</th></tr></thead>
    <tbody>
-    <?php foreach ($expiringPolicies as $policy): ?>
+    <?php foreach ($expiringPolicies as $coverage): ?>
      <tr>
-      <td><strong><?=e((string)$policy['legal_name'])?></strong></td>
-      <td><?=e((string)$policy['dot_number'])?></td>
-      <td><?=e((string)$policy['policy_number'])?></td>
-      <td><?=e((string)$policy['carrier_name'])?></td>
-      <td><?=e(ucfirst((string)$policy['status']))?></td>
-      <td><strong><?=e(date('M j, Y',strtotime((string)$policy['expiration_date'])))?></strong></td>
-      <td><strong><?=((int)$policy['days_remaining'])===0?'Expires today':((int)$policy['days_remaining']).' day(s)'?></strong></td>
-      <td><?php if (!empty($policy['email'])): ?><a href="mailto:<?=e((string)$policy['email'])?>"><?=e((string)$policy['email'])?></a><?php endif; ?><?php if (!empty($policy['phone'])): ?><?=!empty($policy['email'])?' · ':''?><?=e((string)$policy['phone'])?><?php endif; ?><?php if (empty($policy['email'])&&empty($policy['phone'])): ?>—<?php endif; ?></td>
+      <td><strong><?=e((string)$coverage['legal_name'])?></strong></td>
+      <td><?=e((string)$coverage['dot_number'])?></td>
+      <td><?=e((string)$coverage['policy_number'])?></td>
+      <td><strong><?=e((string)$coverage['coverage_type'])?></strong></td>
+      <td><?=e((string)$coverage['carrier_name'])?></td>
+      <td><?=e(ucfirst((string)$coverage['status']))?></td>
+      <td><?=$coverage['start_date']!==''?e(date('M j, Y',strtotime((string)$coverage['start_date']))):'—'?></td>
+      <td><strong><?=e(date('M j, Y',strtotime((string)$coverage['expiration_date'])))?></strong></td>
+      <td><strong><?=((int)$coverage['days_remaining'])===0?'Expires today':((int)$coverage['days_remaining']).' day(s)'?></strong></td>
+      <td><?php if (!empty($coverage['email'])): ?><a href="mailto:<?=e((string)$coverage['email'])?>"><?=e((string)$coverage['email'])?></a><?php endif; ?><?php if (!empty($coverage['phone'])): ?><?=!empty($coverage['email'])?' · ':''?><?=e((string)$coverage['phone'])?><?php endif; ?><?php if (empty($coverage['email'])&&empty($coverage['phone'])): ?>—<?php endif; ?></td>
      </tr>
     <?php endforeach; ?>
    </tbody>
   </table>
  </div>
  <?php else: ?>
-  <p class="muted" style="margin:0">No policies are expiring within the next 7 days.</p>
+  <p class="muted" style="margin:0">No insurance coverages are expiring within the next 7 days.</p>
  <?php endif; ?>
 </div>
 </section>
