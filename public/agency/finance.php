@@ -179,7 +179,89 @@ if(!in_array($action,['list','add','edit'],true))$action='list';
 </div></section>
 <div class="form-actions"><button class="btn primary" type="submit">Save Finance Record</button><a class="btn light" href="<?=e(appUrl($base))?>">Cancel</a></div></form></section>
 <script>
-(function(){const insured=document.getElementById('finance-insured'),policy=document.getElementById('finance-policy'),company=document.getElementById('finance-company'),other=document.getElementById('finance-company-other-wrap');if(insured&&policy){function filter(){const id=insured.value;Array.from(policy.options).forEach(o=>{if(!o.value)return;o.disabled=o.dataset.insured!==id;if(o.disabled&&o.selected)policy.value='';});}insured.addEventListener('change',filter);filter();}if(company&&other){function showOther(){other.style.display=company.value==='Other / Direct Bill / New Finance Co.'?'flex':'none';}company.addEventListener('change',showOther);showOther();}})();
+(function(){
+ const insured=document.getElementById('finance-insured');
+ const policy=document.getElementById('finance-policy');
+ const planList=document.getElementById('finance-plan-list');
+ const addPlanButton=document.getElementById('add-finance-plan');
+
+ if(insured&&policy){
+  function filterPolicies(){
+   const selectedInsured=insured.value;
+   Array.from(policy.options).forEach(option=>{
+    if(!option.value)return;
+    option.disabled=option.dataset.insured!==selectedInsured;
+    if(option.disabled&&option.selected)policy.value='';
+   });
+  }
+  insured.addEventListener('change',filterPolicies);
+  filterPolicies();
+ }
+
+ if(!planList||!addPlanButton)return;
+
+ function refreshCompanyOther(card){
+  const company=card.querySelector('[data-plan-field="finance_company"]');
+  const other=card.querySelector('[data-company-other]');
+  if(!company||!other)return;
+  other.style.display=company.value==='Other / Direct Bill / New Finance Co.'?'flex':'none';
+ }
+
+ function renumberPlans(){
+  const cards=Array.from(planList.querySelectorAll('[data-finance-plan]'));
+  cards.forEach((card,index)=>{
+   card.dataset.planIndex=String(index);
+   const title=card.querySelector('[data-plan-title]');
+   if(title)title.textContent='Finance Plan '+(index+1);
+   card.querySelectorAll('[name]').forEach(field=>{
+    field.name=field.name.replace(/plans\[\d+\]/,'plans['+index+']');
+   });
+   const remove=card.querySelector('[data-remove-plan]');
+   if(remove)remove.hidden=index===0;
+   refreshCompanyOther(card);
+  });
+  addPlanButton.disabled=cards.length>=4;
+  addPlanButton.title=cards.length>=4?'Maximum of four Finance Plans reached':'Add another Finance Plan';
+ }
+
+ addPlanButton.addEventListener('click',function(){
+  const cards=planList.querySelectorAll('[data-finance-plan]');
+  if(cards.length>=4)return;
+  const clone=cards[0].cloneNode(true);
+  clone.querySelectorAll('[data-plan-field]').forEach(field=>{
+   if(field.tagName==='SELECT'){
+    field.value=field.dataset.planField==='status'?'Pending Setup':'';
+   }else{
+    field.value='';
+   }
+  });
+  const other=clone.querySelector('[data-company-other]');
+  if(other)other.style.display='none';
+  planList.appendChild(clone);
+  renumberPlans();
+  const firstInput=clone.querySelector('[data-plan-field]');
+  if(firstInput)firstInput.focus();
+ });
+
+ planList.addEventListener('click',function(event){
+  const remove=event.target.closest('[data-remove-plan]');
+  if(!remove)return;
+  const cards=planList.querySelectorAll('[data-finance-plan]');
+  if(cards.length<=1)return;
+  const card=remove.closest('[data-finance-plan]');
+  if(card)card.remove();
+  renumberPlans();
+ });
+
+ planList.addEventListener('change',function(event){
+  if(event.target.matches('[data-plan-field="finance_company"]')){
+   const card=event.target.closest('[data-finance-plan]');
+   if(card)refreshCompanyOther(card);
+  }
+ });
+
+ renumberPlans();
+})();
 </script>
 <?php else:?>
 <div class="page-title"><div><h1>Finance Billing Manage</h1><p class="muted">Manage premium finance billing records for clients and policies.</p></div><a class="btn primary" href="<?=e(appUrl($base.'?action=add'))?>">+ Add Finance</a></div>
