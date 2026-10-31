@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS finance_billing (
  insured_id BIGINT UNSIGNED NOT NULL, policy_id BIGINT UNSIGNED NULL,
  status VARCHAR(40) NOT NULL DEFAULT 'Pending Setup',
  coverage_policy_type VARCHAR(80) NOT NULL, finance_company VARCHAR(255) NOT NULL,
- finance_company_other VARCHAR(255) NULL, finance_account_number VARCHAR(100) NULL,
+ finance_company_other VARCHAR(255) NULL, finance_plans JSON NULL, finance_account_number VARCHAR(100) NULL,
  down_payment DECIMAL(13,2) NULL, installments SMALLINT UNSIGNED NULL,
  monthly_amount DECIMAL(13,2) NULL, next_due_date DATE NULL, pending_past_due DECIMAL(13,2) NULL,
  autopay VARCHAR(20) NULL, payment_method VARCHAR(40) NULL, last_payment_date DATE NULL,
