@@ -169,7 +169,7 @@ final class CertificatePdf
             self::draw($pdf,$data['policy_number'],76.5,136.2,39.0,4.0,6.6,1);
             self::draw($pdf,$data['effective_date'],117.8,136.2,16.5,4.0,5.8,1);
             self::draw($pdf,$data['expiration_date'],134.8,136.2,17.0,4.0,5.8,1);
-            self::drawLimitValue($pdf, $data['combined_single_limit'], 191.2, 136.2, 20.3, 4.1, 5.7);
+            self::drawLimitValue($pdf, $data['combined_single_limit'], 184.2, 137.2, 20.3, 4.1, 5.7);
 
             // ACORD 25 INS LTR column maps each selected coverage to its selected insurer letter.
             $typeRows = [
@@ -202,7 +202,7 @@ final class CertificatePdf
                     'products_completed_operations_aggregate' => 129.7,
                 ];
                 foreach ($cglLimitRows as $limitKey => $limitY) {
-                    self::drawLimitValue($pdf, self::formatLimit(trim((string)($cglLimits[$limitKey] ?? ''))), 191.2, $limitY, 20.3, 4.1, 5.3);
+                    self::drawLimitValue($pdf, self::formatLimit(trim((string)($cglLimits[$limitKey] ?? ''))), 184.2, $limitY, 20.3, 4.1, 5.3);
                 }
             }
 
