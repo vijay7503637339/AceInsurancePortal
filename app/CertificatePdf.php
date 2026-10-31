@@ -69,6 +69,15 @@ final class CertificatePdf
             $line = trim((string)($v['vin'] ?? '')) ?: 'Vehicle';
             if (trim((string)($v['unit_number'] ?? '')) !== '') $line .= ' (Unit ' . trim((string)$v['unit_number']) . ')';
             if ($details !== '') $line .= ' - ' . $details;
+
+            // Append only selected insurer company names; never expose insurer letters or NAIC values.
+            $carrierNames = is_array($v['carrier_names'] ?? null) ? $v['carrier_names'] : [];
+            $carrierNames = array_values(array_unique(array_filter(
+                array_map(static fn($name): string => is_scalar($name) ? trim((string)$name) : '', $carrierNames),
+                static fn(string $name): bool => $name !== ''
+            )));
+            if ($carrierNames) $line .= ' (' . implode(', ', $carrierNames) . ')';
+
             $vehicleLines[] = $line;
         }
         $coverage = [];
