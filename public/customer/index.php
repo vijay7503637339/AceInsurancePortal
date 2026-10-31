@@ -114,7 +114,11 @@ function sendCertificateMail(array $to, array $cc, string $policyNumber, string 
     }
 
     // ACE Insurance is always copied; any additional CC addresses entered by the customer are retained.
-    $cc = array_values(array_unique(array_merge($cc, ['info@AceInsure.com'])));
+    $ccMap = [];
+    foreach (array_merge($cc, ['info@AceInsure.com']) as $ccAddress) {
+        $ccMap[strtolower($ccAddress)] = $ccAddress;
+    }
+    $cc = array_values($ccMap);
     $fromName = 'ACE Insurance';
     $boundary = '=_AcePortal_' . bin2hex(random_bytes(16));
     $alternativeBoundary = '=_AcePortalAlt_' . bin2hex(random_bytes(16));
@@ -457,10 +461,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['certificate_action'])
         $ccEmails = [];
         if ($action === 'send') {
             $toEmails = certificateEmails($certificateForm['broker_emails']);
-            $ccEmails = array_values(array_unique(array_merge(
+            $ccEmailMap = [];
+            foreach (array_merge(
                 certificateEmails($certificateForm['cc_emails']),
                 ['info@AceInsure.com']
-            )));
+            ) as $ccAddress) {
+                $ccEmailMap[strtolower($ccAddress)] = $ccAddress;
+            }
+            $ccEmails = array_values($ccEmailMap);
             if (!$toEmails) throw new \RuntimeException('Enter at least one broker email address.');
         }
 
