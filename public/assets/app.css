@@ -828,3 +828,48 @@
  .finance-notes-grid{padding:0 12px 12px}
  .finance-plan-card-heading{padding:10px 12px}
 }
+
+
+/* Claim multi-adjuster cards and claim-specific change history */
+.claim-adjuster-list{display:flex;flex-direction:column;gap:12px}
+.claim-adjuster-card{min-width:0;padding:14px;border:1px solid #dce5f0;border-radius:10px;background:#fbfcff}
+.claim-adjuster-card-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.claim-adjuster-card-heading h3{margin:0;color:#263d5e;font-size:13px;font-weight:800}
+.claim-adjuster-card-heading .claim-remove-adjuster{color:#8d3d38;border-color:#ead1cf}
+.claim-adjuster-card-heading .claim-remove-adjuster:hover{background:#fff3f2;border-color:#dfb5b1}
+.claim-adjuster-card-heading [hidden]{display:none!important}
+.claim-adjuster-controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px}
+.claim-adjuster-controls #claim-add-adjuster{font-size:12px;font-weight:800}
+.claim-adjuster-controls #claim-add-adjuster:disabled{opacity:.5;cursor:not-allowed}
+.claim-loss-summary{margin-top:16px}
+.claim-log-open{overflow:hidden}
+.claim-log-modal{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:24px}
+.claim-log-modal[hidden]{display:none!important}
+.claim-log-backdrop{position:absolute;inset:0;background:rgba(8,20,38,.64);backdrop-filter:blur(3px)}
+.claim-log-dialog{position:relative;display:flex;flex-direction:column;width:min(900px,100%);max-height:min(86vh,900px);overflow:hidden;border:1px solid #dbe5f2;border-radius:16px;background:#fff;box-shadow:0 28px 80px rgba(3,15,34,.3)}
+.claim-log-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:21px 24px;border-bottom:1px solid #e7edf5;background:#f8faff}
+.claim-log-header h2{margin:0 0 5px;color:#1d2e4f;font-size:19px}
+.claim-log-header p{margin:0;font-size:12px}
+.claim-log-content{display:flex;flex-direction:column;gap:13px;overflow:auto;padding:20px 24px}
+.claim-log-entry{padding:15px;border:1px solid #e0e8f2;border-radius:11px;background:#fff}
+.claim-log-entry-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.claim-log-entry-heading strong{color:#1d2e4f;font-size:13px}
+.claim-log-entry-heading span{color:#72829a;font-size:11px;font-variant-numeric:tabular-nums}
+.claim-log-actor{margin:6px 0 12px;color:#63758e;font-size:11px;font-weight:650;text-transform:capitalize}
+.claim-log-changes{display:flex;flex-direction:column;border-top:1px solid #edf1f7}
+.claim-log-change{display:grid;grid-template-columns:minmax(145px,.65fr) minmax(0,1.35fr);gap:12px;padding:10px 0;border-bottom:1px solid #edf1f7}
+.claim-log-change>strong{color:#344b6a;font-size:11px}
+.claim-log-values{display:grid;gap:5px;min-width:0}
+.claim-log-values p{margin:0;padding:7px 9px;border-radius:6px;font-size:11px;line-height:1.55;overflow-wrap:anywhere;white-space:pre-wrap}
+.claim-log-old{background:#fff5f3;color:#8b4941}
+.claim-log-new{background:#f0f7ff;color:#315980}
+.claim-log-no-changes,.claim-log-error{margin:12px 0 0;font-size:12px}
+.claim-log-error{color:#a32b22}
+@media(max-width:650px){
+ .claim-log-modal{padding:10px}
+ .claim-log-dialog{max-height:92vh;border-radius:12px}
+ .claim-log-header{padding:17px}
+ .claim-log-content{padding:14px}
+ .claim-log-change{grid-template-columns:minmax(0,1fr);gap:7px}
+ .claim-adjuster-controls{align-items:flex-start;flex-direction:column}
+}
