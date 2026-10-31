@@ -169,7 +169,7 @@ final class CertificatePdf
             self::draw($pdf,$data['policy_number'],76.5,136.2,39.0,4.0,6.6,1);
             self::draw($pdf,$data['effective_date'],117.8,136.2,16.5,4.0,5.8,1);
             self::draw($pdf,$data['expiration_date'],134.8,136.2,17.0,4.0,5.8,1);
-            self::draw($pdf,$data['combined_single_limit'],182.8,136.2,23.0,4.0,6.2,1);
+            self::drawLimitValue($pdf, $data['combined_single_limit'], 194.0, 136.2, 17.5, 4.1, 5.7);
 
             // ACORD 25 INS LTR column maps each selected coverage to its selected insurer letter.
             $typeRows = [
@@ -202,7 +202,7 @@ final class CertificatePdf
                     'products_completed_operations_aggregate' => 129.7,
                 ];
                 foreach ($cglLimitRows as $limitKey => $limitY) {
-                    self::draw($pdf, self::formatLimit(trim((string)($cglLimits[$limitKey] ?? ''))), 182.8, $limitY, 23.0, 3.6, 5.6, 1);
+                    self::drawLimitValue($pdf, self::formatLimit(trim((string)($cglLimits[$limitKey] ?? ''))), 194.0, $limitY, 17.5, 4.1, 5.3);
                 }
             }
 
@@ -213,23 +213,23 @@ final class CertificatePdf
                 self::draw($pdf, trim((string)($physicalDamageData['policy_number'] ?? '')), 76.5, 187.1, 39.0, 3.6, 5.4, 1);
                 self::draw($pdf, self::dateValue($physicalDamageData['effective_date'] ?? null), 117.8, 187.1, 16.5, 3.6, 5.1, 1);
                 self::draw($pdf, self::dateValue($physicalDamageData['expiration_date'] ?? null), 134.8, 187.1, 17.0, 3.6, 5.1, 1);
-                self::draw($pdf, self::formatLimit(trim((string)($physicalDamageData['amount'] ?? ''))), 182.8, 187.1, 23.0, 3.6, 5.5, 1);
+                self::drawLimitValue($pdf, self::formatLimit(trim((string)($physicalDamageData['amount'] ?? ''))), 194.0, 187.1, 17.5, 3.8, 5.3);
             }
             if (in_array('motor_truck_cargo', $insuranceTypes, true)) {
                 self::draw($pdf, 'MOTOR TRUCK CARGO', 18.0, 194.7, 55.0, 3.0, 5.8, 1);
                 self::draw($pdf, trim((string)($motorTruckCargoData['policy_number'] ?? '')), 76.5, 195.6, 39.0, 3.6, 5.4, 1);
                 self::draw($pdf, self::dateValue($motorTruckCargoData['effective_date'] ?? null), 117.8, 195.6, 16.5, 3.6, 5.1, 1);
                 self::draw($pdf, self::dateValue($motorTruckCargoData['expiration_date'] ?? null), 134.8, 195.6, 17.0, 3.6, 5.1, 1);
-                self::draw($pdf, self::formatLimit(trim((string)($motorTruckCargoData['amount'] ?? ''))), 153.5, 195.6, 18.0, 3.6, 5.5, 1);
+                self::drawLimitValue($pdf, self::formatLimit(trim((string)($motorTruckCargoData['amount'] ?? ''))), 153.5, 195.6, 18.0, 3.8, 5.3);
                 self::draw($pdf, trim((string)($motorTruckCargoData['description'] ?? '')), 172.5, 195.6, 33.0, 3.6, 5.2, 1);
             }
 
             // Mark only the options selected in the saved policy form.
-            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'commercial_general_liability', 'claims_made'), 18.0, 113.0);
-            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'commercial_general_liability', 'occur'), 45.0, 113.0);
-            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'commercial_general_liability', 'aggregate_policy'), 15.2, 128.8);
-            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'commercial_general_liability', 'aggregate_project'), 31.2, 128.8);
-            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'commercial_general_liability', 'aggregate_location'), 47.4, 128.8);
+            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'commercial_general_liability', 'claims_made'), 15.0, 112.3);
+            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'commercial_general_liability', 'occur'), 39.5, 112.3);
+            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'commercial_general_liability', 'aggregate_policy'), 10.2, 130.4);
+            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'commercial_general_liability', 'aggregate_project'), 26.0, 130.4);
+            self::markCheckbox($pdf, self::hasOption($coverageOptions, 'commercial_general_liability', 'aggregate_location'), 42.4, 130.4);
             self::draw($pdf, trim((string)($coverage['aggregate_other_description'] ?? '')), 13.0, 131.7, 41.0, 3.7, 5.4, 1);
 
             self::markCheckbox($pdf, self::hasOption($coverageOptions, 'automobile_liability', 'any_auto'), 15.5, 141.8);
@@ -277,7 +277,7 @@ final class CertificatePdf
         return is_array($selected) && in_array($key, $selected, true);
     }
 
-    private static function markCheckbox(Fpdi $pdf, bool $selected, float $centerX, float $centerY, float $size = 2.3): void
+    private static function markCheckbox(Fpdi $pdf, bool $selected, float $centerX, float $centerY, float $size = 1.45): void
     {
         if (!$selected) return;
         $pdf->SetDrawColor(12, 24, 42);
@@ -330,6 +330,33 @@ final class CertificatePdf
         if (function_exists('mb_substr')) return mb_substr($text, $start, $length, 'UTF-8');
         $out = iconv_substr($text, $start, $length, 'UTF-8');
         return $out === false ? substr($text, $start, $length) : $out;
+    }
+
+
+    /**
+     * Draw a single-line limit amount inside its value cell.
+     * centerY is the vertical center of the printed ACORD row; the currency
+     * symbol is already present in the source template, so only the amount
+     * is drawn here and it is right-aligned within the numeric cell.
+     */
+    private static function drawLimitValue(Fpdi $pdf, string $text, float $x, float $centerY, float $width, float $height = 4.1, float $size = 5.4): void
+    {
+        $text = trim($text);
+        if ($text === '') return;
+
+        $encoded = self::pdfText($text);
+        if ($encoded === '') return;
+
+        $fontSize = $size;
+        $pdf->SetFont('Helvetica', '', $fontSize);
+        while ($pdf->GetStringWidth($encoded) > $width && $fontSize > 4.2) {
+            $fontSize = max(4.2, $fontSize - 0.2);
+            $pdf->SetFont('Helvetica', '', $fontSize);
+        }
+
+        $pdf->SetTextColor(10, 10, 10);
+        $pdf->SetXY($x, $centerY - ($height / 2));
+        $pdf->Cell($width, $height, $encoded, 0, 0, 'R', false);
     }
 
     private static function draw(Fpdi $pdf, string $text, float $x, float $y, float $width, float $height, float $size = 7.0, int $maxLines = 2): void
