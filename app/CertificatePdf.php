@@ -208,20 +208,20 @@ final class CertificatePdf
 
             // Physical Damage and Motor Truck Cargo occupy the unused rows just above Description of Operations.
             if (in_array('physical_damage', $insuranceTypes, true)) {
-                self::draw($pdf, 'PHYSICAL DAMAGE', 18.0, 186.2, 55.0, 3.0, 5.8, 1);
-                self::draw($pdf, trim((string)($physicalDamageData['description'] ?? '')), 18.0, 189.0, 55.0, 3.2, 4.6, 1);
+                self::draw($pdf, 'PHYSICAL DAMAGE', 18.0, 187.0, 55.0, 3.0, 5.8, 1);
+                self::draw($pdf, trim((string)($physicalDamageData['description'] ?? '')), 172.5, 187.2, 55.0, 3.2, 4.6, 1);
                 self::draw($pdf, trim((string)($physicalDamageData['policy_number'] ?? '')), 76.5, 187.1, 39.0, 3.6, 5.4, 1);
                 self::draw($pdf, self::dateValue($physicalDamageData['effective_date'] ?? null), 117.8, 187.1, 16.5, 3.6, 5.1, 1);
                 self::draw($pdf, self::dateValue($physicalDamageData['expiration_date'] ?? null), 134.8, 187.1, 17.0, 3.6, 5.1, 1);
-                self::drawLimitValue($pdf, self::formatLimit(trim((string)($physicalDamageData['amount'] ?? ''))), 191.2, 187.1, 20.3, 3.8, 5.3);
+                self::drawLimitValue($pdf, self::formatLimit(trim((string)($physicalDamageData['amount'] ?? ''))), 153.5, 189.1, 20.3, 3.8, 5.3);
             }
             if (in_array('motor_truck_cargo', $insuranceTypes, true)) {
-                self::draw($pdf, 'MOTOR TRUCK CARGO', 18.0, 194.7, 55.0, 3.0, 5.8, 1);
-                self::draw($pdf, trim((string)($motorTruckCargoData['policy_number'] ?? '')), 76.5, 195.6, 39.0, 3.6, 5.4, 1);
-                self::draw($pdf, self::dateValue($motorTruckCargoData['effective_date'] ?? null), 117.8, 195.6, 16.5, 3.6, 5.1, 1);
-                self::draw($pdf, self::dateValue($motorTruckCargoData['expiration_date'] ?? null), 134.8, 195.6, 17.0, 3.6, 5.1, 1);
-                self::drawLimitValue($pdf, self::formatLimit(trim((string)($motorTruckCargoData['amount'] ?? ''))), 153.5, 195.6, 18.0, 3.8, 5.3);
-                self::draw($pdf, trim((string)($motorTruckCargoData['description'] ?? '')), 172.5, 195.6, 33.0, 3.6, 5.2, 1);
+                self::draw($pdf, 'MOTOR TRUCK CARGO', 18.0, 194.6, 55.0, 3.0, 5.8, 1);
+                self::draw($pdf, trim((string)($motorTruckCargoData['policy_number'] ?? '')), 76.5, 194.6, 39.0, 3.6, 5.4, 1);
+                self::draw($pdf, self::dateValue($motorTruckCargoData['effective_date'] ?? null), 117.8, 194.6, 16.5, 3.6, 5.1, 1);
+                self::draw($pdf, self::dateValue($motorTruckCargoData['expiration_date'] ?? null), 134.8, 194.6, 17.0, 3.6, 5.1, 1);
+                self::drawLimitValue($pdf, self::formatLimit(trim((string)($motorTruckCargoData['amount'] ?? ''))), 153.5, 195.9, 18.0, 3.8, 5.3);
+                self::draw($pdf, trim((string)($motorTruckCargoData['description'] ?? '')), 172.5, 194.6, 33.0, 3.6, 5.2, 1);
             }
 
             // Mark only the options selected in the saved policy form.
