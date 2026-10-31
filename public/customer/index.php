@@ -90,13 +90,20 @@ function certificateEmails(string $raw): array
     return array_values(array_unique($emails));
 }
 
-function sendCertificateMail(array $to, array $cc, string $policyNumber, string $insuredName, string $holderName, string $attachmentPath): bool
+function sendCertificateMail(array $to, array $cc, string $policyNumber, string $insuredName, string $insuredAddress, string $holderName, array $vehicles, array $companySettings, string $attachmentPath): bool
 {
     if (!$to) throw new \RuntimeException('Enter at least one broker email address before sending the certificate.');
     $mailConfig = configFile('mail');
     $from = trim((string)($mailConfig['from_email'] ?? ''));
     if (!filter_var($from, FILTER_VALIDATE_EMAIL)) {
         throw new \RuntimeException('Configure a valid sender email in config/mail.php before sending certificates.');
+    }
+    $contactName = trim((string)($companySettings['contact_person'] ?? ''));
+    $contactPhone = trim((string)($companySettings['phone_number'] ?? ''));
+    $contactEmail = trim((string)($companySettings['email_address'] ?? ''));
+    $companyName = trim((string)($companySettings['company_name'] ?? 'ACE Insurance'));
+    if ($contactName === '' || $contactPhone === '' || !filter_var($contactEmail, FILTER_VALIDATE_EMAIL)) {
+        throw new \RuntimeException('Please save the Contact Person, Phone Number and Email Address in Admin → Own Company before sending.');
     }
     if (!is_file($attachmentPath) || !is_readable($attachmentPath)) {
         throw new \RuntimeException('The generated certificate could not be opened for email attachment.');
@@ -105,13 +112,55 @@ function sendCertificateMail(array $to, array $cc, string $policyNumber, string 
     if (!is_string($pdf) || !str_starts_with($pdf, '%PDF-')) {
         throw new \RuntimeException('The generated certificate attachment is not a valid PDF.');
     }
-    $fromName = str_replace(["\r", "\n", '"'], '', (string)($mailConfig['from_name'] ?? 'Ace Insurance Portal'));
+
+    // ACE Insurance is always copied; any additional CC addresses entered by the customer are retained.
+    $cc = array_values(array_unique(array_merge($cc, ['info@AceInsure.com'])));
+    $fromName = 'ACE Insurance';
     $boundary = '=_AcePortal_' . bin2hex(random_bytes(16));
+    $alternativeBoundary = '=_AcePortalAlt_' . bin2hex(random_bytes(16));
     $safePolicy = preg_replace('/[^A-Za-z0-9_-]+/', '-', $policyNumber) ?: 'policy';
     $filename = 'certificate-' . trim($safePolicy, '-') . '.pdf';
-    $subjectPolicy = str_replace(["\r", "\n"], '', $policyNumber);
-    $subject = 'Certificate of Insurance - Policy ' . $subjectPolicy;
-    $bodyText = "Hello,\n\nPlease find attached the Certificate of Insurance for policy {$policyNumber}.\nInsured: {$insuredName}\nCertificate holder: {$holderName}\n\nThis document was generated from the policy information currently on file. Please contact the issuing agency if any corrections are required.\n";
+    $subject = 'Certificate of Insurance - ' . trim(str_replace(["\r", "\n"], '', $insuredName));
+    $encodedSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
+    $escapeHtml = static fn(string $value): string => htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    $vinList = [];
+    foreach ($vehicles as $vehicle) {
+        $vin = trim((string)($vehicle['vin'] ?? ''));
+        if ($vin !== '') $vinList[] = $vin;
+    }
+    $vehicleCount = count($vehicles);
+    $vins = $vinList ? implode(', ', $vinList) : 'No vehicle VINs were provided.';
+    $bodyText = "Dear {$holderName},\n\nPlease find attached the Certificate of Insurance for {$insuredName}.\n\nVehicles included: {$vehicleCount} vehicle(s)\nVINs: {$vins}\n\nInsured: {$insuredName}\nAddress: {$insuredAddress}\n\nBest regards,\n{$contactName}\n{$companyName}\nPhone: {$contactPhone}\nEmail: {$contactEmail}\n";
+    $html = '<!doctype html><html lang="en"><body style="margin:0;padding:24px 10px;background:#f2f5fa;font-family:Arial,Helvetica,sans-serif;color:#26364d;">'
+        . '<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #e1e8f1;border-radius:14px;overflow:hidden;">'
+        . '<tr><td style="padding:25px 30px;background:#122747;color:#ffffff;">'
+        . '<table role="presentation" cellpadding="0" cellspacing="0"><tr>'
+        . '<td style="width:46px;height:46px;border-radius:12px;background:#ffffff;color:#1d5fe8;text-align:center;vertical-align:middle;font-size:25px;font-weight:800;">A</td>'
+        . '<td style="padding-left:12px;"><div style="font-size:19px;line-height:1.2;font-weight:800;letter-spacing:1px;">ACE INSURANCE</div><div style="margin-top:4px;color:#c6d5ea;font-size:10px;letter-spacing:2px;">CERTIFICATE SERVICES</div></td>'
+        . '</tr></table></td></tr>'
+        . '<tr><td style="padding:30px;">'
+        . '<div style="color:#1d5fe8;font-size:10px;font-weight:800;letter-spacing:1.6px;">CERTIFICATE OF INSURANCE</div>'
+        . '<h1 style="margin:8px 0 18px;color:#172b49;font-size:23px;line-height:1.3;">Certificate attached</h1>'
+        . '<p style="margin:0 0 16px;font-size:14px;line-height:1.7;">Dear <strong>' . $escapeHtml($holderName) . '</strong>,</p>'
+        . '<p style="margin:0 0 21px;color:#52637a;font-size:14px;line-height:1.75;">Please find attached the Certificate of Insurance for <strong style="color:#1b2e4c;">' . $escapeHtml($insuredName) . '</strong>.</p>'
+        . '<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:0 0 21px;border:1px solid #e3eaf3;border-radius:10px;background:#f8fafd;">'
+        . '<tr><td style="padding:16px 18px;">'
+        . '<div style="margin-bottom:12px;color:#718198;font-size:10px;font-weight:800;letter-spacing:1.2px;">CERTIFICATE DETAILS</div>'
+        . '<div style="margin-bottom:9px;font-size:13px;color:#293d5a;"><strong>Vehicles included:</strong> ' . $vehicleCount . ' vehicle(s)</div>'
+        . '<div style="margin-bottom:9px;font-size:13px;color:#293d5a;line-height:1.65;"><strong>VINs:</strong> ' . $escapeHtml($vins) . '</div>'
+        . '<div style="margin-bottom:9px;font-size:13px;color:#293d5a;"><strong>Insured:</strong> ' . $escapeHtml($insuredName) . '</div>'
+        . '<div style="font-size:13px;color:#293d5a;line-height:1.65;"><strong>Address:</strong> ' . $escapeHtml($insuredAddress ?: 'Not provided') . '</div>'
+        . '</td></tr></table>'
+        . '<p style="margin:0 0 5px;color:#52637a;font-size:13px;">Best regards,</p>'
+        . '<p style="margin:0;color:#172b49;font-size:14px;font-weight:800;">' . $escapeHtml($contactName) . '</p>'
+        . '<p style="margin:4px 0 0;color:#52637a;font-size:12px;">' . $escapeHtml($companyName) . '</p>'
+        . '<div style="margin-top:15px;padding-top:14px;border-top:1px solid #e8edf4;font-size:12px;line-height:1.9;color:#52637a;">'
+        . '<div><strong style="color:#2b3d57;">Phone:</strong> <a href="tel:' . $escapeHtml($contactPhone) . '" style="color:#1d5fe8;text-decoration:none;">' . $escapeHtml($contactPhone) . '</a></div>'
+        . '<div><strong style="color:#2b3d57;">Email:</strong> <a href="mailto:' . $escapeHtml($contactEmail) . '" style="color:#1d5fe8;text-decoration:none;">' . $escapeHtml($contactEmail) . '</a></div>'
+        . '</div></td></tr>'
+        . '<tr><td style="padding:15px 30px;background:#f8fafd;border-top:1px solid #e8edf4;color:#8794a7;font-size:10px;line-height:1.6;">This email was sent by ACE Insurance. The Certificate of Insurance is attached as a PDF.</td></tr>'
+        . '</table></body></html>';
+
     $headers = [
         'From: ' . $fromName . ' <' . $from . '>',
         'MIME-Version: 1.0',
@@ -120,16 +169,21 @@ function sendCertificateMail(array $to, array $cc, string $policyNumber, string 
     ];
     if ($cc) $headers[] = 'Cc: ' . implode(', ', $cc);
     $body = '--' . $boundary . "\r\n";
-    $body .= "Content-Type: text/plain; charset=UTF-8\r\n";
-    $body .= "Content-Transfer-Encoding: 8bit\r\n\r\n";
+    $body .= 'Content-Type: multipart/alternative; boundary="' . $alternativeBoundary . '"' . "\r\n\r\n";
+    $body .= '--' . $alternativeBoundary . "\r\n";
+    $body .= "Content-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\n";
     $body .= $bodyText . "\r\n";
+    $body .= '--' . $alternativeBoundary . "\r\n";
+    $body .= "Content-Type: text/html; charset=UTF-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\n";
+    $body .= $html . "\r\n";
+    $body .= '--' . $alternativeBoundary . "--\r\n";
     $body .= '--' . $boundary . "\r\n";
     $body .= 'Content-Type: application/pdf; name="' . $filename . '"' . "\r\n";
-    $body .= 'Content-Transfer-Encoding: base64' . "\r\n";
+    $body .= "Content-Transfer-Encoding: base64\r\n";
     $body .= 'Content-Disposition: attachment; filename="' . $filename . '"' . "\r\n\r\n";
     $body .= chunk_split(base64_encode($pdf)) . "\r\n";
     $body .= '--' . $boundary . "--\r\n";
-    return mail(implode(', ', $to), $subject, $body, implode("\r\n", $headers));
+    return mail(implode(', ', $to), $encodedSubject, $body, implode("\r\n", $headers));
 }
 
 $q = db()->prepare('SELECT * FROM insureds WHERE id = :id LIMIT 1');
@@ -403,7 +457,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['certificate_action'])
         $ccEmails = [];
         if ($action === 'send') {
             $toEmails = certificateEmails($certificateForm['broker_emails']);
-            $ccEmails = certificateEmails($certificateForm['cc_emails']);
+            $ccEmails = array_values(array_unique(array_merge(
+                certificateEmails($certificateForm['cc_emails']),
+                ['info@AceInsure.com']
+            )));
             if (!$toEmails) throw new \RuntimeException('Enter at least one broker email address.');
         }
 
@@ -447,19 +504,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['certificate_action'])
         $generatedId = $fileId;
 
         if ($action === 'send') {
+            $insuredEmailAddress = implode(', ', array_filter([
+                trim((string)($insured['address_line1'] ?? '')),
+                trim((string)($insured['address_line2'] ?? '')),
+                trim((string)($insured['city'] ?? '')),
+                trim((string)($insured['state'] ?? '')),
+                trim((string)($insured['postal_code'] ?? '')),
+                trim((string)($insured['country'] ?? '')),
+            ], static fn(string $part): bool => $part !== ''));
             $mailSent = sendCertificateMail(
                 $toEmails,
                 $ccEmails,
                 (string)$selectedPolicy['policy_number'],
                 (string)$insured['legal_name'],
+                $insuredEmailAddress,
                 $certificateForm['broker_name'],
+                $selectedVehicles,
+                $companySettings,
                 $outputPath
             );
             if (!$mailSent) {
                 throw new \RuntimeException('The PDF was generated, but the hosting mail service could not send it. Check config/mail.php and cPanel email delivery.');
             }
             audit('certificate_email_sent', 'policy', $currentPolicyId, 'Customer emailed certificate to broker for policy ' . (string)$selectedPolicy['policy_number']);
-            flash('success', 'Certificate generated and sent to the broker email address(es).');
+            $_SESSION['certificate_sent_modal'] = [
+                'customer_name' => (string)$insured['legal_name'],
+                'broker_emails' => implode(', ', $toEmails),
+                'cc_emails' => implode(', ', $ccEmails),
+                'policy_id' => $currentPolicyId,
+            ];
         } else {
             audit('certificate_generated', 'policy', $currentPolicyId, 'Customer generated a certificate preview for policy ' . (string)$selectedPolicy['policy_number']);
             flash('success', 'Certificate preview generated from your policy records.');
@@ -488,6 +561,8 @@ if (($premiumTotal === null || $premiumTotal === '') &&
         + (float)($selectedPolicy['estimated_fee'] ?? 0)
         + (float)($selectedPolicy['estimated_tax'] ?? 0);
 }
+$certificateSentModal = $_SESSION['certificate_sent_modal'] ?? null;
+unset($_SESSION['certificate_sent_modal']);
 $flash = getFlash();
 ?><!doctype html>
 <html lang="en">
@@ -613,7 +688,7 @@ $flash = getFlash();
                         <input type="hidden" name="policy_id" value="<?= (int)$selectedPolicy['id'] ?>">
                         <div class="cert-form-section">EMAIL DELIVERY</div>
                         <label>Broker Email(s)<input type="text" name="broker_emails" value="<?= customerText((string)$certificateForm['broker_emails']) ?>" placeholder="broker@example.com, broker2@example.com"><small>Required only when sending. Separate multiple email addresses with commas.</small></label>
-                        <label>CC Email(s)<input type="text" name="cc_emails" value="<?= customerText((string)$certificateForm['cc_emails']) ?>" placeholder="cc@example.com, cc2@example.com"><small>Optional. Separate multiple addresses with commas.</small></label>
+                        <label>Additional CC Email(s)<input type="text" name="cc_emails" value="<?= customerText((string)$certificateForm['cc_emails']) ?>" placeholder="additional@example.com"><small>Optional. <strong>info@AceInsure.com</strong> is automatically copied on every certificate email.</small></label>
                         <div class="cert-form-section">BROKER / CERTIFICATE HOLDER</div>
                         <label>Broker Name *<input type="text" name="broker_name" value="<?= customerText((string)$certificateForm['broker_name']) ?>" required maxlength="190" placeholder="Certificate holder name"></label>
                         <label>Broker Address *<textarea name="broker_address" rows="3" maxlength="700" required placeholder="Certificate holder address"><?= customerText((string)$certificateForm['broker_address']) ?></textarea><small>This broker name and address will be placed in the Certificate Holder section of the PDF.</small></label>
@@ -685,5 +760,27 @@ $flash = getFlash();
         <?php endif; ?>
     <?php endif; ?>
 </main>
+<?php if (is_array($certificateSentModal)): ?>
+<div class="certificate-success-modal" role="dialog" aria-modal="true" aria-labelledby="certificate-success-title">
+    <div class="certificate-success-backdrop"></div>
+    <section class="certificate-success-dialog">
+        <div class="certificate-success-brand">
+            <span class="certificate-success-logo">A</span>
+            <span><strong>ACE INSURANCE</strong><small>CERTIFICATE SERVICES</small></span>
+        </div>
+        <div class="certificate-success-check" aria-hidden="true">✓</div>
+        <p class="certificate-success-eyebrow">EMAIL DELIVERY COMPLETE</p>
+        <h2 id="certificate-success-title">Certificate Sent Successfully!</h2>
+        <p class="certificate-success-copy">The Certificate of Insurance for <strong><?= customerText((string)($certificateSentModal['customer_name'] ?? '')) ?></strong> has been sent with the PDF attached.</p>
+        <div class="certificate-success-meta">
+            <div><span>Sent to</span><strong><?= customerText((string)($certificateSentModal['broker_emails'] ?? '')) ?></strong></div>
+            <div><span>CC</span><strong><?= customerText((string)($certificateSentModal['cc_emails'] ?? 'info@AceInsure.com')) ?></strong></div>
+            <div><span>Attachment</span><strong>Certificate of Insurance · PDF</strong></div>
+        </div>
+        <a class="btn primary certificate-success-done" href="<?= customerText(appUrl('/customer/index.php?tab=policies&policy_id='.(int)($certificateSentModal['policy_id'] ?? 0))) ?>">Done</a>
+        <p class="certificate-success-footnote">You can view your policy details anytime from the Policies section.</p>
+    </section>
+</div>
+<?php endif; ?>
 </body>
 </html>
