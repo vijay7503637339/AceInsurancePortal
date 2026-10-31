@@ -83,6 +83,7 @@ function customerCoverageCards(array $policy): array
 {
     $decoded = json_decode((string)($policy['coverage_data'] ?? ''), true);
     if (!is_array($decoded)) return [];
+
     $labels = [
         'commercial_general_liability' => 'Commercial General Liability',
         'automobile_liability' => 'Automobile Liability',
@@ -91,6 +92,15 @@ function customerCoverageCards(array $policy): array
         'umbrella_liability' => 'Umbrella Liability',
         'excess_liability' => 'Excess Liability',
         'workers_compensation_employers_liability' => "Workers Compensation & Employers' Liability",
+    ];
+    $symbols = [
+        'commercial_general_liability' => 'GL',
+        'automobile_liability' => 'AL',
+        'physical_damage' => 'PD',
+        'motor_truck_cargo' => 'MC',
+        'umbrella_liability' => 'UL',
+        'excess_liability' => 'EX',
+        'workers_compensation_employers_liability' => 'WC',
     ];
     $optionLabels = [
         'claims_made' => 'Claims-Made', 'occur' => 'Occurrence',
@@ -112,51 +122,48 @@ function customerCoverageCards(array $policy): array
     $types = is_array($decoded['insurance_types'] ?? null) ? $decoded['insurance_types'] : [];
     $carriers = is_array($decoded['insurance_carriers'] ?? null) ? $decoded['insurance_carriers'] : [];
     $savedOptions = is_array($decoded['coverage_options'] ?? null) ? $decoded['coverage_options'] : [];
-    $today = gmdate('Y-m-d');
+    $today = date('Y-m-d');
     $cards = [];
 
     foreach (array_values(array_unique(array_map('strval', $types))) as $type) {
         if (!isset($labels[$type])) continue;
         $data = is_array($decoded[$type] ?? null) ? $decoded[$type] : [];
-        $startDate = $endDate = $policyNumber = $description = '';
+        $startDate = trim((string)($data['effective_date'] ?? ''));
+        $endDate = trim((string)($data['expiration_date'] ?? ''));
+        $policyNumber = trim((string)($data['policy_number'] ?? ''));
+        $description = trim((string)($data['description'] ?? ''));
         $highlights = $details = [];
 
-        if ($type === 'commercial_general_liability') {
-            $startDate = (string)($data['effective_date'] ?? '');
-            $endDate = (string)($data['expiration_date'] ?? '');
-            $policyNumber = (string)($data['policy_number'] ?? '');
-            $limits = is_array($data['limits'] ?? null) ? $data['limits'] : [];
-            foreach ($limitLabels as $key => $label) {
-                $value = trim((string)($limits[$key] ?? ''));
-                if ($value === '') continue;
-                $formatted = customerCoverageAmount($value);
-                $details[] = [$label, $formatted];
-                if (in_array($key, ['each_occurrence', 'general_aggregate'], true)) $highlights[] = [$label, $formatted];
-            }
-        } elseif ($type === 'automobile_liability') {
-            $startDate = (string)($policy['effective_date'] ?? '');
-            $endDate = (string)($policy['expiration_date'] ?? '');
-            $policyNumber = (string)($policy['policy_number'] ?? '');
+        if ($type === 'automobile_liability') {
+            // Older records store automobile liability dates and number on the parent policy.
+            $startDate = $startDate !== '' ? $startDate : (string)($policy['effective_date'] ?? '');
+            $endDate = $endDate !== '' ? $endDate : (string)($policy['expiration_date'] ?? '');
+            $policyNumber = $policyNumber !== '' ? $policyNumber : (string)($policy['policy_number'] ?? '');
             $limit = trim((string)($decoded['combined_single_limit'] ?? ''));
             if ($limit !== '') {
                 $formatted = customerCoverageAmount($limit);
                 $highlights[] = ['Combined Single Limit', $formatted];
                 $details[] = ['Combined Single Limit (Each Accident)', $formatted];
             }
+        } elseif ($type === 'commercial_general_liability') {
+            $limits = is_array($data['limits'] ?? null) ? $data['limits'] : [];
+            foreach ($limitLabels as $key => $label) {
+                $value = trim((string)($limits[$key] ?? ''));
+                if ($value === '') continue;
+                $formatted = customerCoverageAmount($value);
+                $details[] = [$label, $formatted];
+                if (in_array($key, ['each_occurrence', 'general_aggregate'], true)) {
+                    $highlights[] = [$label, $formatted];
+                }
+            }
         } elseif (in_array($type, ['physical_damage', 'motor_truck_cargo'], true)) {
-            $startDate = (string)($data['effective_date'] ?? '');
-            $endDate = (string)($data['expiration_date'] ?? '');
-            $policyNumber = (string)($data['policy_number'] ?? '');
             $amount = trim((string)($data['amount'] ?? ''));
-            $description = trim((string)($data['description'] ?? ''));
             if ($amount !== '') {
                 $formatted = customerCoverageAmount($amount);
                 $highlights[] = ['Coverage Limit', $formatted];
                 $details[] = ['Amount / Limit', $formatted];
             }
             if ($description !== '') $details[] = ['Description', $description];
-        } else {
-            $description = 'Separate policy dates and limits have not been entered for this coverage.';
         }
 
         $options = [];
@@ -164,12 +171,15 @@ function customerCoverageCards(array $policy): array
             $option = (string)$option;
             if ($option !== '') $options[] = $optionLabels[$option] ?? ucwords(str_replace('_', ' ', $option));
         }
+
         $carrierLetter = strtoupper(trim((string)($carriers[$type] ?? '')));
         $carrierName = '';
         if (preg_match('/^[A-F]$/', $carrierLetter)) {
             $carrierName = trim((string)($policy['insurer_' . strtolower($carrierLetter) . '_name'] ?? ''));
         }
-        if ($carrierName === '' && $type === 'automobile_liability') $carrierName = trim((string)($policy['carrier_name'] ?? ''));
+        if ($carrierName === '' && $type === 'automobile_liability') {
+            $carrierName = trim((string)($policy['carrier_name'] ?? ''));
+        }
 
         if ($startDate !== '' && $endDate !== '') {
             if ($endDate < $today) { $status = 'Expired'; $statusClass = 'is-expired'; }
@@ -179,17 +189,19 @@ function customerCoverageCards(array $policy): array
             $status = 'Dates not added';
             $statusClass = 'is-incomplete';
         }
+
         $cards[] = [
-            'key' => $type, 'name' => $labels[$type], 'policy_number' => $policyNumber,
-            'start_date' => $startDate, 'end_date' => $endDate, 'status' => $status,
-            'status_class' => $statusClass, 'carrier' => $carrierName,
-            'highlights' => $highlights, 'options' => array_values(array_unique($options)),
+            'key' => $type, 'symbol' => $symbols[$type] ?? 'IN',
+            'name' => $labels[$type], 'policy_number' => $policyNumber,
+            'start_date' => $startDate, 'end_date' => $endDate,
+            'status' => $status, 'status_class' => $statusClass,
+            'carrier' => $carrierName, 'highlights' => $highlights,
+            'options' => array_values(array_unique($options)),
             'details' => $details, 'description' => $description,
         ];
     }
     return $cards;
 }
-
 function certificateEmails(string $raw): array
 {
     $raw = trim($raw);
@@ -781,7 +793,7 @@ $flash = getFlash();
 
             <section class="panel customer-coverages-panel">
                 <div class="section-heading customer-coverages-heading">
-                    <div><h2>Insurance Coverages</h2><p class="muted small">Each insurance plan is shown separately with its own policy period.</p></div>
+                    <div><h2>Insurance Coverages</h2><p class="muted small">Your insurance plans, shown separately with policy dates and key limits.</p></div>
                     <?php if ($coverages): ?><span class="count-pill"><?= count($coverages) ?> <?= count($coverages) === 1 ? 'plan' : 'plans' ?></span><?php endif; ?>
                 </div>
                 <?php if ($coverages): ?>
@@ -790,18 +802,18 @@ $flash = getFlash();
                             <article class="customer-coverage-card">
                                 <div class="customer-coverage-card-head">
                                     <div class="customer-coverage-title-wrap">
-                                        <span class="customer-coverage-symbol" aria-hidden="true"><?= $coverage['key'] === 'commercial_general_liability' ? 'GL' : ($coverage['key'] === 'automobile_liability' ? 'AU' : ($coverage['key'] === 'physical_damage' ? 'PD' : ($coverage['key'] === 'motor_truck_cargo' ? 'MC' : 'IN'))) ?></span>
+                                        <span class="customer-coverage-symbol" aria-hidden="true"><?= customerText($coverage['symbol']) ?></span>
                                         <div class="customer-coverage-title">
                                             <h3><?= customerText($coverage['name']) ?></h3>
-                                            <?php if ($coverage['policy_number'] !== ''): ?><span>Policy #<?= customerText($coverage['policy_number']) ?></span><?php else: ?><span>Policy number not added</span><?php endif; ?>
+                                            <span><?= $coverage['policy_number'] !== '' ? 'Policy #'.customerText($coverage['policy_number']) : 'Policy number not added' ?></span>
                                         </div>
                                     </div>
                                     <span class="customer-coverage-status <?= customerText($coverage['status_class']) ?>"><?= customerText($coverage['status']) ?></span>
                                 </div>
                                 <div class="customer-coverage-period">
-                                    <div><span>START DATE</span><strong><?= $coverage['start_date'] !== '' ? customerDate($coverage['start_date']) : 'Not added' ?></strong></div>
+                                    <div><span>POLICY STARTS</span><strong><?= $coverage['start_date'] !== '' ? customerDate($coverage['start_date']) : 'Not provided' ?></strong></div>
                                     <span class="customer-coverage-period-arrow" aria-hidden="true">→</span>
-                                    <div><span>END DATE</span><strong><?= $coverage['end_date'] !== '' ? customerDate($coverage['end_date']) : 'Not added' ?></strong></div>
+                                    <div><span>POLICY ENDS</span><strong><?= $coverage['end_date'] !== '' ? customerDate($coverage['end_date']) : 'Not provided' ?></strong></div>
                                 </div>
                                 <?php if ($coverage['carrier'] !== ''): ?><div class="customer-coverage-carrier"><span>Insurance carrier</span><strong><?= customerText($coverage['carrier']) ?></strong></div><?php endif; ?>
                                 <?php if ($coverage['highlights']): ?>
@@ -812,16 +824,16 @@ $flash = getFlash();
                                     </div>
                                 <?php endif; ?>
                                 <?php if ($coverage['options']): ?>
-                                    <div class="customer-coverage-options"><span>Coverage options</span><div><?php foreach ($coverage['options'] as $option): ?><span><?= customerText($option) ?></span><?php endforeach; ?></div></div>
+                                    <div class="customer-coverage-options"><span>Included coverage options</span><div><?php foreach ($coverage['options'] as $option): ?><span><?= customerText($option) ?></span><?php endforeach; ?></div></div>
                                 <?php endif; ?>
                                 <?php if ($coverage['details'] || $coverage['description'] !== ''): ?>
                                     <details class="customer-coverage-more">
-                                        <summary>View coverage details</summary>
+                                        <summary>See all limits and details</summary>
                                         <?php if ($coverage['details']): ?><div class="customer-coverage-detail-list"><?php foreach ($coverage['details'] as [$detailLabel, $detailValue]): ?><div><span><?= customerText($detailLabel) ?></span><strong><?= customerText($detailValue) ?></strong></div><?php endforeach; ?></div><?php endif; ?>
                                         <?php if ($coverage['description'] !== ''): ?><p class="customer-coverage-description"><?= customerText($coverage['description']) ?></p><?php endif; ?>
                                     </details>
                                 <?php elseif ($coverage['status_class'] === 'is-incomplete'): ?>
-                                    <p class="customer-coverage-note">Coverage-specific dates are not available in the saved policy record.</p>
+                                    <p class="customer-coverage-note">Your agency has not added a separate policy period for this coverage yet. Please contact your agency for confirmation.</p>
                                 <?php endif; ?>
                             </article>
                         <?php endforeach; ?>
