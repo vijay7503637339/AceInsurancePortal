@@ -666,3 +666,95 @@
  .acord-limits-grid{grid-template-columns:minmax(0,1fr)}
  .acord-custom-insurance-extra{grid-template-columns:minmax(0,1fr)}
 }
+
+
+/* Vehicle and driver carrier selection */
+.carrier-selection-manager{
+ grid-column:1/-1;
+ display:flex;
+ flex-direction:column;
+ gap:13px;
+ min-width:0;
+ padding:18px;
+ border:1px solid #dce6f4;
+ border-radius:12px;
+ background:#f7faff;
+}
+.carrier-selection-heading{
+ display:flex;
+ align-items:flex-start;
+ justify-content:space-between;
+ gap:14px;
+}
+.carrier-selection-heading h3{
+ margin:0 0 5px;
+ color:#1d2e4f;
+ font-size:16px;
+}
+.carrier-selection-heading p{
+ margin:0;
+ color:#71829a;
+ font-size:11px;
+ line-height:1.6;
+}
+.carrier-selection-options{
+ display:grid;
+ grid-template-columns:repeat(2,minmax(0,1fr));
+ gap:9px;
+ min-width:0;
+}
+.carrier-selection-option{
+ display:flex !important;
+ flex-direction:row !important;
+ align-items:flex-start;
+ gap:10px !important;
+ min-width:0;
+ margin:0 !important;
+ padding:11px 12px;
+ border:1px solid #dce5f0;
+ border-radius:9px;
+ background:#fff;
+ color:#31445f !important;
+ font-size:11px !important;
+ font-weight:650 !important;
+ line-height:1.55;
+ cursor:pointer;
+ transition:border-color .15s,background .15s,box-shadow .15s;
+}
+.carrier-selection-option:hover{
+ border-color:#9eb3d0;
+ background:#fbfdff;
+}
+.carrier-selection-option:has(input:checked){
+ border-color:#829bbd;
+ background:#f0f5fc;
+ box-shadow:inset 0 0 0 1px rgba(29,46,79,.04);
+}
+.crud-form .carrier-selection-option input[type=checkbox]{
+ flex:0 0 16px;
+ width:16px;
+ height:16px;
+ min-height:16px;
+ margin:1px 0 0;
+ padding:0;
+ accent-color:#1d2e4f;
+}
+.carrier-selection-option span{
+ min-width:0;
+ overflow-wrap:anywhere;
+}
+.carrier-selection-message{
+ grid-column:1/-1;
+ margin:0;
+ padding:13px 14px;
+ border:1px dashed #cbd8e8;
+ border-radius:9px;
+ background:#fff;
+ color:#6c7f98;
+ font-size:12px;
+ line-height:1.6;
+}
+@media(max-width:720px){
+ .carrier-selection-options{grid-template-columns:minmax(0,1fr)}
+ .carrier-selection-manager{padding:14px}
+}
