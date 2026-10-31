@@ -63,7 +63,7 @@ $formUrl=$listUrl.'&action='.$action.($id!==null?'&id='.(int)$id:'');
 <div class="page-title"><div><h1><?=$action==='edit'?'Edit Record #'.$id:'Add New Record'?></h1><p class="muted"><?=$action==='edit'?'Update the selected record and save your changes.':'Enter the details below to create a new record.'?></p></div><a class="btn light" href="<?=e(appUrl($listUrl))?>">← Back to List</a></div>
 <?php endif;?>
 <?php if($flash):?><div class="alert success"><?=e($flash['message'])?></div><?php endif;?><?php if($error):?><div class="alert error"><?=e($error)?></div><?php endif;?>
-<?php if($action==='add'||$action==='edit'):?><div class="panel crud-form-panel"><h2><?=$action==='edit'?'Edit Record #'.$id:'Add New Record'?></h2><form method="post" action="<?=e(appUrl($formUrl))?>" class="form-grid crud-form"><input type="hidden" name="_csrf" value="<?=e(csrfToken())?>"><input type="hidden" name="entity" value="<?=e($key)?>"><input type="hidden" name="id" value="<?=e((string)($id??''))?>"><?php foreach($entity['fields'] as $f=>$m):if($key==='policies'&&preg_match('/^insurer_[a-f]_(name|naic)$/',$f))continue;$v=$editing[$f]??'';?><label><?=e($m[0])?><?=$m[2]?' *':''?><?php if($m[1]==='insured_select'):?><select name="<?=e($f)?>" <?=$m[2]?'required':''?>><option value="">Select insured customer</option><?php foreach($customers as $c):?><option value="<?=$c['id']?>" <?=(string)$v===(string)$c['id']?'selected':''?>><?=e($c['legal_name'].' (DOT '.$c['dot_number'].')')?></option><?php endforeach;?></select><?php elseif(str_starts_with($m[1],'select:')):?><select name="<?=e($f)?>" <?=$m[2]?'required':''?>><option value="">Select</option><?php foreach(explode(',',substr($m[1],7)) as $o):?><option value="<?=e($o)?>" <?=(string)$v===$o?'selected':''?>><?=e(ucfirst($o))?></option><?php endforeach;?></select><?php else:?><input type="<?=e($m[1])?>" name="<?=e($f)?>" value="<?=e(is_scalar($v)?(string)$v:'')?>" <?=$m[2]?'required':''?>><?php endif;?></label><?php endforeach;?><?php if($key==='policies'): ?>
+<?php if($action==='add'||$action==='edit'):?><div class="panel crud-form-panel"><h2><?=$action==='edit'?'Edit Record #'.$id:'Add New Record'?></h2><form method="post" action="<?=e(appUrl($formUrl))?>" class="form-grid crud-form"><input type="hidden" name="_csrf" value="<?=e(csrfToken())?>"><input type="hidden" name="entity" value="<?=e($key)?>"><input type="hidden" name="id" value="<?=e((string)($id??''))?>"><?php foreach($entity['fields'] as $f=>$m):if($key==='policies'&&(preg_match('/^insurer_[a-f]_(name|naic)$/',$f)||in_array($f,['policy_number','effective_date','expiration_date'],true)))continue;$v=$editing[$f]??'';?><label><?=e($m[0])?><?=$m[2]?' *':''?><?php if($m[1]==='insured_select'):?><select name="<?=e($f)?>" <?=$m[2]?'required':''?>><option value="">Select insured customer</option><?php foreach($customers as $c):?><option value="<?=$c['id']?>" <?=(string)$v===(string)$c['id']?'selected':''?>><?=e($c['legal_name'].' (DOT '.$c['dot_number'].')')?></option><?php endforeach;?></select><?php elseif(str_starts_with($m[1],'select:')):?><select name="<?=e($f)?>" <?=$m[2]?'required':''?>><option value="">Select</option><?php foreach(explode(',',substr($m[1],7)) as $o):?><option value="<?=e($o)?>" <?=(string)$v===$o?'selected':''?>><?=e(ucfirst($o))?></option><?php endforeach;?></select><?php else:?><input type="<?=e($m[1])?>" name="<?=e($f)?>" value="<?=e(is_scalar($v)?(string)$v:'')?>" <?=$m[2]?'required':''?>><?php endif;?></label><?php endforeach;?><?php if($key==='policies'): ?>
 <div class="insurer-manager">
  <div class="insurer-manager-heading"><div><h3>Insurance Companies</h3><p class="muted">Insurer A is the primary company. Add B–F only when a policy has additional insurers.</p></div><span class="count-pill" id="insurer-count">1 / 6</span></div>
  <div class="insurer-manager-rows" id="insurer-rows">
@@ -230,6 +230,17 @@ $formUrl=$listUrl.'&action='.$action.($id!==null?'&id='.(int)$id:'');
      </div>
     </div>
    <?php elseif($typeKey==='automobile_liability'):?>
+    <div class="acord-fields-grid acord-policy-fields acord-auto-policy-fields">
+     <label>Policy Number *
+      <input type="text" name="policy_number" value="<?=e((string)($editing['policy_number']??''))?>" maxlength="100" required>
+     </label>
+     <label>Effective Date
+      <input type="date" name="effective_date" value="<?=e((string)($editing['effective_date']??''))?>">
+     </label>
+     <label>Expiration Date
+      <input type="date" name="expiration_date" value="<?=e((string)($editing['expiration_date']??''))?>">
+     </label>
+    </div>
     <label class="acord-limit-field">Combined Single Limit (Each Accident)
      <span class="acord-money-input"><span>$</span><input type="text" inputmode="decimal" name="combined_single_limit" value="<?=e($combinedSingleLimit)?>" placeholder="e.g. 1000000" maxlength="20" aria-describedby="combined-limit-help"></span>
      <small id="combined-limit-help">Enter the Auto Liability limit. Commas and a leading $ are accepted.</small>
