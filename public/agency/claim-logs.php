@@ -30,7 +30,7 @@ try {
          FROM claim_change_logs
          WHERE claim_id = :claim_id
          ORDER BY created_at DESC, id DESC
-         LIMIT 200'
+'
     );
     $query->execute(['claim_id' => $claimId]);
     $logs = [];
