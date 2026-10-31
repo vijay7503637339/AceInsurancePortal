@@ -135,11 +135,42 @@ if(!in_array($action,['list','add','edit'],true))$action='list';
 <label>Insured Customer *<select id="finance-insured" name="insured_id" required><option value="">Select insured customer</option><?php foreach($insureds as $i):?><option value="<?=(int)$i['id']?>" <?=$sel('insured_id',(string)$i['id'])?>><?=e((string)$i['legal_name'])?> · DOT <?=e((string)$i['dot_number'])?></option><?php endforeach;?></select></label>
 <label>Linked Policy (optional)<select id="finance-policy" name="policy_id"><option value="">No policy selected</option><?php foreach($policies as $p):?><option value="<?=(int)$p['id']?>" data-insured="<?=(int)$p['insured_id']?>" <?=$sel('policy_id',(string)$p['id'])?>><?=e((string)$p['policy_number'])?><?=trim((string)($p['business_line']??''))!==''?' · '.e((string)$p['business_line']):''?></option><?php endforeach;?></select><small>Only policies belonging to the selected customer can be linked.</small></label>
 </div></section>
-<section class="finance-section"><div class="finance-section-heading"><h2>Finance Plan</h2><p>Dropdown options follow the 04 Finance Billing worksheet.</p></div><div class="finance-grid">
-<?php foreach($fields as [$f,$label,$type,$options,$required,$step]):?><label><?=e($label)?><?=$required?' *':''?><?php if($type==='select'):?><select name="<?=e($f)?>" <?=$required?'required':''?>><option value=""><?=$f==='status'?'Select status':($f==='coverage_policy_type'?'Select coverage':($f==='finance_company'?'Select finance company':'Select'))?></option><?php foreach($options as $o):?><option value="<?=e($o)?>" <?=$sel($f,$o)?>><?=e($o)?></option><?php endforeach;?></select><?php else:?><input type="<?=e($type)?>" name="<?=e($f)?>" value="<?=e((string)($form[$f]??''))?>" <?=$required?'required':''?> <?=$type==='number'?'min="0" step="'.($step!==''?$step:'0.01').'"':''?> <?=$f==='installments'?'max="1000"':''?>><?php endif;?></label><?php endforeach;?>
-<label id="finance-company-other-wrap" class="finance-conditional">Other Finance Company Name<input type="text" name="finance_company_other" maxlength="255" value="<?=e((string)($form['finance_company_other']??''))?>" placeholder="Enter company name if known"></label>
-<label class="finance-wide">Billing Notes<textarea name="billing_notes" rows="3" maxlength="5000" placeholder="Notes, reminders or billing arrangements"><?=e((string)($form['billing_notes']??''))?></textarea></label>
-</div></section>
+<section class="finance-section finance-plans-section">
+<div class="finance-section-heading finance-plans-heading">
+ <div><h2>Finance Plans</h2><p>Add up to four plans under this single Finance Billing record.</p></div>
+ <button class="btn light finance-add-plan" type="button" id="add-finance-plan"><span aria-hidden="true">＋</span> Add Plan</button>
+</div>
+<div class="finance-plan-list" id="finance-plan-list">
+<?php foreach($plans as $planIndex=>$plan): ?>
+ <div class="finance-plan-card" data-finance-plan data-plan-index="<?=$planIndex?>">
+  <div class="finance-plan-card-heading">
+   <h3 data-plan-title>Finance Plan <?=$planIndex+1?></h3>
+   <button class="btn light small-btn finance-remove-plan" type="button" data-remove-plan <?=$planIndex===0?'hidden':''?>>Remove</button>
+  </div>
+  <div class="finance-grid">
+   <?php foreach($fields as [$f,$label,$type,$options,$required,$step]): ?>
+    <label><?=e($label)?><?=$required?' *':''?>
+     <?php if($type==='select'): ?>
+      <select name="plans[<?=$planIndex?>][<?=e($f)?>]" data-plan-field="<?=e($f)?>" <?=$required?'required':''?>>
+       <option value=""><?=$f==='status'?'Select status':($f==='coverage_policy_type'?'Select coverage':($f==='finance_company'?'Select finance company':'Select'))?></option>
+       <?php foreach($options as $o): ?><option value="<?=e($o)?>" <?=(string)($plan[$f]??'')===$o?'selected':''?>><?=e($o)?></option><?php endforeach; ?>
+      </select>
+     <?php else: ?>
+      <input type="<?=e($type)?>" name="plans[<?=$planIndex?>][<?=e($f)?>]" data-plan-field="<?=e($f)?>" value="<?=e((string)($plan[$f]??''))?>" <?=$required?'required':''?> <?=$type==='number'?'min="0" step="'.($step!==''?$step:'0.01').'"':''?> <?=$f==='installments'?'max="1000"':''?>>
+     <?php endif; ?>
+    </label>
+   <?php endforeach; ?>
+   <label class="finance-conditional" data-company-other style="<?=($plan['finance_company']??'')==='Other / Direct Bill / New Finance Co.'?'display:flex':'display:none'?>">Other Finance Company Name
+    <input type="text" name="plans[<?=$planIndex?>][finance_company_other]" data-plan-field="finance_company_other" maxlength="255" value="<?=e((string)($plan['finance_company_other']??''))?>" placeholder="Enter company name if known">
+   </label>
+  </div>
+ </div>
+<?php endforeach; ?>
+</div>
+<div class="finance-grid finance-notes-grid">
+ <label class="finance-wide">Billing Notes<textarea name="billing_notes" rows="3" maxlength="5000" placeholder="Notes, reminders or billing arrangements"><?=e((string)($form['billing_notes']??''))?></textarea></label>
+</div>
+</section>
 <section class="finance-section"><div class="finance-section-heading"><h2>Payment Tracking</h2><p>Optional details of payment collection.</p></div><div class="finance-grid">
 <label>Autopay<select name="autopay"><option value="">Select</option><?php foreach($autopayOptions as $o):?><option value="<?=e($o)?>" <?=$sel('autopay',$o)?>><?=e($o)?></option><?php endforeach;?></select></label>
 <label>Payment Method<select name="payment_method"><option value="">Select</option><?php foreach($paymentMethods as $o):?><option value="<?=e($o)?>" <?=$sel('payment_method',$o)?>><?=e($o)?></option><?php endforeach;?></select></label>
