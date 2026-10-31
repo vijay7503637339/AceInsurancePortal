@@ -758,3 +758,73 @@
  .carrier-selection-options{grid-template-columns:minmax(0,1fr)}
  .carrier-selection-manager{padding:14px}
 }
+
+
+/* Multiple finance plans inside one billing record */
+.finance-plans-heading{
+ display:flex;
+ align-items:center;
+ justify-content:space-between;
+ gap:16px;
+}
+.finance-plans-heading>div{min-width:0}
+.finance-add-plan{
+ flex:0 0 auto;
+ display:inline-flex;
+ align-items:center;
+ justify-content:center;
+ gap:7px;
+ min-height:39px;
+ border:1px solid #b8c9df!important;
+ border-radius:8px;
+ background:#fff!important;
+ color:#1d2e4f!important;
+ font-size:12px;
+ font-weight:800;
+}
+.finance-add-plan>span{font-size:19px;line-height:1;font-weight:600}
+.finance-add-plan:hover{background:#f0f5fc!important;border-color:#8299b8!important}
+.finance-add-plan:disabled{opacity:.45;cursor:not-allowed;box-shadow:none}
+.finance-plan-list{display:flex;flex-direction:column;gap:14px;padding:18px 18px 0}
+.finance-plan-card{
+ min-width:0;
+ border:1px solid #dce5f0;
+ border-radius:10px;
+ background:#fff;
+ overflow:hidden;
+}
+.finance-plan-card-heading{
+ display:flex;
+ align-items:center;
+ justify-content:space-between;
+ gap:12px;
+ padding:11px 15px;
+ border-bottom:1px solid #e8eef6;
+ background:#f8faff;
+}
+.finance-plan-card-heading h3{
+ margin:0;
+ color:#263d5e;
+ font-size:13px;
+ font-weight:800;
+}
+.finance-plan-card-heading .finance-remove-plan{
+ color:#8d3d38;
+ border-color:#ead1cf;
+ background:#fff;
+ font-weight:700;
+}
+.finance-plan-card-heading .finance-remove-plan:hover{background:#fff3f2;border-color:#dfb5b1}
+.finance-plan-card-heading [hidden]{display:none!important}
+.finance-plan-card>.finance-grid{padding:16px}
+.finance-plan-card .finance-conditional{display:none}
+.finance-notes-grid{padding:0 18px 18px}
+.finance-plans-section>.finance-plans-heading{padding:15px 18px}
+@media(max-width:650px){
+ .finance-plans-heading{align-items:flex-start;flex-direction:column}
+ .finance-add-plan{width:100%}
+ .finance-plan-list{padding:12px 12px 0}
+ .finance-plan-card>.finance-grid{padding:12px}
+ .finance-notes-grid{padding:0 12px 12px}
+ .finance-plan-card-heading{padding:10px 12px}
+}
