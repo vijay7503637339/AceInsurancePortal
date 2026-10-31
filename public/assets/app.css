@@ -1126,3 +1126,42 @@
  .customer-coverage-period strong{font-size:12px}
  .customer-coverage-highlights,.customer-coverage-detail-list{grid-template-columns:minmax(0,1fr)}
 }
+
+
+/* Customer coverage refresh: clear, scan-friendly individual policy cards */
+.customer-coverages-panel{gap:20px;padding:24px}
+.customer-coverages-heading{padding-bottom:3px}
+.customer-coverages-heading h2{font-size:20px;letter-spacing:-.45px}
+.customer-coverage-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.customer-coverage-card{gap:15px;padding:20px;border-radius:14px;background:#fff;box-shadow:0 5px 18px rgba(27,55,91,.055)}
+.customer-coverage-card-head{align-items:center}
+.customer-coverage-symbol{flex-basis:46px;width:46px;height:46px;border-radius:13px;background:#edf4ff;color:#24569a;border-color:#dce8f8;font-size:12px}
+.customer-coverage-title h3{font-size:15px;line-height:1.4}
+.customer-coverage-title>span{font-size:11px}
+.customer-coverage-status{font-size:10px;letter-spacing:.25px}
+.customer-coverage-period{padding:15px 16px;background:#f6f9fe;border-color:#e2eaf5}
+.customer-coverage-period>div>span{font-size:10px;letter-spacing:.8px}
+.customer-coverage-period strong{font-size:15px}
+.customer-coverage-carrier{padding:0 2px;font-size:12px}
+.customer-coverage-carrier strong{font-size:12px}
+.customer-coverage-highlights{gap:10px}
+.customer-coverage-highlights>div{min-height:67px;padding:12px 13px;background:#fbfcff}
+.customer-coverage-highlights>div>span{font-size:10px}
+.customer-coverage-highlights>div>strong{font-size:15px}
+.customer-coverage-options>span{font-size:10px}
+.customer-coverage-options>div>span{font-size:11px;padding:6px 9px}
+.customer-coverage-more{padding-top:13px}
+.customer-coverage-more summary{font-size:12px}
+.customer-coverage-detail-list>div>span{font-size:10px}
+.customer-coverage-detail-list>div>strong{font-size:12px}
+.customer-coverage-description,.customer-coverage-note{font-size:12px}
+@media(max-width:900px){.customer-coverage-grid{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:560px){
+ .customer-coverages-panel{padding:16px}
+ .customer-coverage-card{padding:16px}
+ .customer-coverage-card-head{align-items:flex-start}
+ .customer-coverage-status{margin-left:57px}
+ .customer-coverage-period{padding:12px 11px}
+ .customer-coverage-period strong{font-size:12px}
+ .customer-coverage-highlights,.customer-coverage-detail-list{grid-template-columns:minmax(0,1fr)}
+}
