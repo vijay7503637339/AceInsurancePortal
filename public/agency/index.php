@@ -87,7 +87,7 @@ $recordModules=[
   </table>
  </div>
  <?php else: ?>
-  <p class="muted" style="margin:0">No active policies are expiring within the next 7 days.</p>
+  <p class="muted" style="margin:0">No policies are expiring within the next 7 days.</p>
  <?php endif; ?>
 </div>
 </section>
