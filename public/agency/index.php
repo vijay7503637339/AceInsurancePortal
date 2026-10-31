@@ -21,7 +21,7 @@ try {
  );
  $expiringPolicies=$q->fetchAll();
  $policyExpiringCount=count($expiringPolicies);
-} catch(\\Throwable $e) {
+} catch(\Throwable $e) {
  error_log('Dashboard expiring policies query failed: '.$e->getMessage());
 }
 $financeTotal=$safeCount('SELECT COUNT(*) FROM finance_billing');
