@@ -1165,3 +1165,312 @@
  .customer-coverage-period strong{font-size:12px}
  .customer-coverage-highlights,.customer-coverage-detail-list{grid-template-columns:minmax(0,1fr)}
 }
+
+
+/* Customer policy overview: visual-only refinement */
+.customer-policy-page{
+    max-width:1800px;
+    padding:28px 34px 48px;
+}
+.customer-welcome{
+    position:relative;
+    padding:20px 22px;
+    margin-bottom:18px;
+    border:1px solid #dce6f3;
+    border-radius:15px;
+    background:linear-gradient(115deg,#ffffff 0%,#f7faff 70%,#eef5ff 100%);
+    box-shadow:0 5px 18px rgba(26,55,92,.045);
+}
+.customer-welcome .eyebrow{
+    margin-bottom:7px;
+    color:#41638f;
+    font-size:10px;
+    letter-spacing:.14em;
+}
+.customer-welcome h1{
+    color:#1d2e4f;
+    font-size:27px;
+    font-weight:850;
+    letter-spacing:-.7px;
+}
+.customer-welcome p.muted{
+    margin-top:5px;
+    color:#71839e;
+    font-size:13px;
+}
+.insured-summary{
+    gap:8px;
+    font-size:12px;
+    font-weight:650;
+}
+.insured-summary .status-pill{
+    min-height:29px;
+    padding:6px 13px;
+    border:1px solid #c9ecd8;
+    border-radius:999px;
+    background:#eaf8f0;
+    color:#167647;
+    font-size:11px;
+    letter-spacing:.02em;
+}
+.policy-switcher{gap:12px;padding-bottom:17px}
+.policy-chip{
+    min-width:205px;
+    padding:14px 16px;
+    border-color:#dce6f3;
+    border-radius:11px;
+    box-shadow:0 2px 8px rgba(26,55,92,.035);
+    transition:border-color .16s,box-shadow .16s,transform .16s;
+}
+.policy-chip:hover{
+    border-color:#9eb9dc;
+    box-shadow:0 7px 16px rgba(26,55,92,.075);
+    transform:translateY(-1px);
+}
+.policy-chip strong{color:#213654;font-size:13px}
+.policy-chip span{font-size:11px;line-height:1.45}
+.policy-chip.active{
+    border-color:#9ab9e7;
+    background:#f2f7ff;
+    box-shadow:inset 0 0 0 1px #c4d8f2,0 4px 12px rgba(31,79,139,.06);
+}
+.policy-hero{
+    position:relative;
+    overflow:hidden;
+    min-height:124px;
+    padding:24px 28px;
+    margin-bottom:18px;
+    border:1px solid #dbe6f4;
+    border-left:5px solid #243d65;
+    border-radius:14px;
+    background:linear-gradient(110deg,#ffffff 0%,#ffffff 68%,#f6f9ff 100%);
+    box-shadow:0 5px 18px rgba(26,55,92,.05);
+}
+.policy-hero::after{
+    content:"";
+    position:absolute;
+    right:170px;
+    top:-95px;
+    width:230px;
+    height:230px;
+    border:28px solid rgba(220,233,251,.26);
+    border-radius:50%;
+    pointer-events:none;
+}
+.policy-hero>div,.premium-highlight{position:relative;z-index:1}
+.policy-hero .eyebrow{
+    color:#71839e;
+    font-size:10px;
+    letter-spacing:.14em;
+}
+.policy-hero h2{
+    color:#1d3153;
+    font-size:25px;
+    font-weight:900;
+    letter-spacing:-.65px;
+    font-variant-numeric:tabular-nums;
+}
+.policy-hero p{
+    margin-top:6px;
+    color:#6c809d;
+    font-size:13px;
+    font-weight:700;
+}
+.premium-highlight{gap:6px}
+.premium-highlight>span:first-child{
+    color:#71839e;
+    font-size:12px;
+    font-weight:650;
+}
+.premium-highlight strong{
+    color:#1c3154;
+    font-size:31px;
+    font-weight:900;
+    letter-spacing:-.8px;
+}
+.premium-highlight .status-pill{
+    margin-top:2px;
+    min-height:27px;
+    padding:5px 12px;
+    border-radius:999px;
+}
+.policy-info-grid{
+    gap:16px;
+    margin-bottom:18px;
+}
+.info-card{
+    position:relative;
+    overflow:hidden;
+    padding:20px;
+    border:1px solid #dce7f5;
+    border-radius:13px;
+    background:#fff;
+    box-shadow:0 4px 15px rgba(27,55,91,.04);
+    transition:border-color .16s,box-shadow .16s,transform .16s;
+}
+.info-card::before{
+    content:"";
+    position:absolute;
+    top:0;
+    left:0;
+    right:0;
+    height:3px;
+    background:linear-gradient(90deg,#2f5688,#b7cdef 75%,transparent);
+    opacity:.78;
+}
+.info-card:hover{
+    border-color:#c6d7ec;
+    box-shadow:0 8px 22px rgba(27,55,91,.075);
+    transform:translateY(-1px);
+}
+.info-card h2{
+    margin:0 0 15px;
+    padding:2px 0 12px;
+    border-bottom:1px solid #e6edf6;
+    color:#223754;
+    font-size:16px;
+    font-weight:850;
+    letter-spacing:-.25px;
+}
+.detail-list{gap:0}
+.detail-list>div{
+    min-width:0;
+    padding:7px 0;
+    border-bottom:1px solid #f0f3f8;
+}
+.detail-list>div:last-child{border-bottom:0}
+.detail-list dt{
+    color:#74859e;
+    font-size:11px;
+    line-height:1.5;
+    font-weight:600;
+}
+.detail-list dd{
+    color:#253b5b;
+    font-size:11px;
+    line-height:1.5;
+    font-weight:800;
+    overflow-wrap:anywhere;
+}
+.detail-list .detail-total{
+    margin-top:5px;
+    padding-top:12px;
+    border-top:1px solid #dce7f4;
+    border-bottom:0;
+}
+.detail-total dd{color:#1d3e6a;font-size:14px}
+.policy-bottom-grid{
+    gap:18px;
+    margin-bottom:18px;
+}
+.policy-table-panel{
+    padding:20px;
+    border:1px solid #dce7f5;
+    border-radius:14px;
+    box-shadow:0 4px 15px rgba(27,55,91,.04);
+}
+.policy-table-panel .section-heading{margin-bottom:15px}
+.policy-table-panel .section-heading h2{
+    color:#223754;
+    font-size:18px;
+    font-weight:850;
+    letter-spacing:-.35px;
+}
+.policy-table-panel .section-heading .muted{
+    color:#788aa4;
+    font-weight:600;
+}
+.policy-table-panel .count-pill{
+    min-width:25px;
+    height:25px;
+    border:1px solid #d8e6f8;
+    border-radius:50%;
+    background:#edf4ff;
+    color:#2b568d;
+    font-size:11px;
+    font-weight:850;
+}
+.policy-table-panel .table-wrap{
+    overflow-x:auto;
+    border:1px solid #e5edf7;
+    border-radius:9px;
+    background:#fff;
+}
+.policy-table-panel table{
+    width:100%;
+    min-width:590px;
+    border-collapse:separate;
+    border-spacing:0;
+    font-size:12px;
+}
+.policy-table-panel th{
+    padding:12px 11px;
+    border-bottom:1px solid #dce7f4;
+    background:#f2f6fc;
+    color:#536a89;
+    font-size:10px;
+    font-weight:850;
+    letter-spacing:.065em;
+    white-space:nowrap;
+}
+.policy-table-panel td{
+    padding:12px 11px;
+    border-bottom:1px solid #edf2f8;
+    background:#fff;
+    color:#293e5c;
+    font-size:11px;
+    font-weight:550;
+    line-height:1.5;
+    vertical-align:middle;
+}
+.policy-table-panel tbody tr:last-child td{border-bottom:0}
+.policy-table-panel tbody tr:hover td{background:#f8fbff}
+.policy-table-panel td.mono{
+    color:#385578;
+    font-size:10px;
+    font-weight:750;
+    letter-spacing:.015em;
+}
+.policy-table-panel .status-pill{
+    min-width:40px;
+    padding:5px 10px;
+    border-radius:7px;
+    font-size:10px;
+    font-weight:850;
+}
+.policy-table-panel .status-pill.is-inactive{
+    background:#fff1ef;
+    color:#b33c32;
+}
+.policy-table-panel .empty-cell{
+    padding:28px 16px;
+    color:#8191a7;
+    font-size:12px;
+}
+@media(max-width:1250px){
+    .policy-info-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:850px){
+    .customer-policy-page{padding:18px 16px 34px}
+    .customer-welcome{padding:18px}
+    .policy-bottom-grid{grid-template-columns:1fr}
+    .policy-hero{padding:21px}
+}
+@media(max-width:560px){
+    .customer-policy-page{padding:14px 12px 28px}
+    .customer-welcome{padding:16px;gap:14px}
+    .customer-welcome h1{font-size:22px}
+    .insured-summary{align-items:flex-start}
+    .policy-hero{gap:15px;padding:18px;min-height:0}
+    .policy-hero h2{font-size:21px}
+    .premium-highlight strong{font-size:26px}
+    .policy-info-grid{grid-template-columns:1fr;gap:12px}
+    .info-card{padding:17px}
+    .detail-list>div{gap:14px}
+    .detail-list dt{flex:0 1 42%}
+    .detail-list dd{flex:1 1 58%;font-size:11px}
+    .policy-table-panel{padding:15px}
+    .policy-table-panel .section-heading{align-items:flex-start}
+    .policy-table-panel .section-heading .muted{max-width:42%;text-align:right}
+}
+
