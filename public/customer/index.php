@@ -543,6 +543,22 @@ if ($currentPolicyId > 0 && preg_match('/^[a-f0-9]{32}$/', $requestedCertificate
     }
 }
 
+// Reuse the latest auto/manual preview for this policy while it remains in the
+// authenticated customer's session. A new preview is created automatically below
+// when the Certificate tab is opened and no usable preview exists.
+if (!$generatedId && $currentPolicyId > 0) {
+    $cachedPreviewId = (string)($_SESSION['certificate_preview_files'][$currentPolicyId] ?? '');
+    if (preg_match('/^[a-f0-9]{32}$/', $cachedPreviewId)) {
+        $cachedPreview = $_SESSION['certificate_files'][$cachedPreviewId] ?? null;
+        if (is_array($cachedPreview)
+            && (int)($cachedPreview['insured_id'] ?? 0) === $insuredId
+            && (int)($cachedPreview['policy_id'] ?? 0) === $currentPolicyId
+            && is_file(APP_ROOT . '/storage/private/' . $cachedPreviewId . '.pdf')) {
+            $generatedId = $cachedPreviewId;
+        }
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['certificate_action'])) {
     verifyCsrf();
     try {
@@ -628,6 +644,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['certificate_action'])
             $_SESSION['certificate_files'] = array_slice($_SESSION['certificate_files'], -12, null, true);
         }
         $generatedId = $fileId;
+        $_SESSION['certificate_preview_files'][$currentPolicyId] = $fileId;
 
         if ($action === 'send') {
             $insuredEmailAddress = implode(', ', array_filter([
@@ -669,6 +686,64 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['certificate_action'])
         $certificateErrors[] = $exception instanceof \RuntimeException
             ? $exception->getMessage()
             : 'Certificate could not be generated. Please check the server error log or contact your agency.';
+    }
+}
+
+// Automatically prepare a certificate draft the first time the customer opens
+// the Certificate tab. This preview is generated from saved policy records and
+// does not send or issue the certificate. Missing broker address stays blank
+// for the customer to complete before sending.
+if ($tab === 'certificate' && $_SERVER['REQUEST_METHOD'] === 'GET' && $selectedPolicy && $currentPolicyId > 0 && !$generatedId) {
+    try {
+        $allowedVehicleIds = array_map(static fn(array $v): int => (int)$v['id'], $vehicles);
+        $requestedVehicleIds = array_map('intval', (array)($certificateForm['vehicle_ids'] ?? []));
+        $selectedVehicleIds = array_values(array_intersect($requestedVehicleIds, $allowedVehicleIds));
+        if (!$selectedVehicleIds) $selectedVehicleIds = $allowedVehicleIds;
+        $selectedVehicles = array_values(array_filter(
+            $vehicles,
+            static fn(array $v): bool => in_array((int)$v['id'], $selectedVehicleIds, true)
+        ));
+
+        $fileId = bin2hex(random_bytes(16));
+        $storageDirectory = APP_ROOT . '/storage/private';
+        if (!is_dir($storageDirectory) && !mkdir($storageDirectory, 0750, true) && !is_dir($storageDirectory)) {
+            throw new RuntimeException('Could not create private certificate storage. Check folder permissions.');
+        }
+        $outputPath = $storageDirectory . '/' . $fileId . '.pdf';
+        $mailConfig = configFile('mail');
+        $companySettings = db()->query('SELECT * FROM own_company_settings WHERE id = 1')->fetch() ?: [];
+        $certificateConfig = array_merge($mailConfig, [
+            'company_name' => (string)($companySettings['company_name'] ?? ''),
+            'company_address' => (string)($companySettings['company_address'] ?? ''),
+            'contact_person' => (string)($companySettings['contact_person'] ?? ''),
+            'phone_number' => (string)($companySettings['phone_number'] ?? ''),
+            'email_address' => (string)($companySettings['email_address'] ?? ''),
+            'authorized_signature_name' => (string)($companySettings['authorized_signature_name'] ?? ''),
+            'authorized_signature_file' => (string)($companySettings['authorized_signature_file'] ?? ''),
+        ]);
+        CertificatePdf::generate(
+            $selectedPolicy,
+            $insured,
+            $selectedVehicles,
+            $certificateForm,
+            $certificateConfig,
+            $outputPath
+        );
+        $_SESSION['certificate_files'][$fileId] = [
+            'insured_id' => $insuredId,
+            'policy_id' => $currentPolicyId,
+            'created_at' => time(),
+        ];
+        $_SESSION['certificate_preview_files'][$currentPolicyId] = $fileId;
+        if (count($_SESSION['certificate_files']) > 12) {
+            $_SESSION['certificate_files'] = array_slice($_SESSION['certificate_files'], -12, null, true);
+        }
+        $generatedId = $fileId;
+    } catch (Throwable $exception) {
+        error_log('Customer automatic certificate preview failed: ' . $exception->getMessage());
+        $certificateErrors[] = $exception instanceof RuntimeException
+            ? $exception->getMessage()
+            : 'Certificate preview could not be generated automatically. Please try again or contact your agency.';
     }
 }
 
@@ -874,9 +949,10 @@ $flash = getFlash();
                     </form>
                 </section>
                 <section class="panel certificate-preview-panel" id="certificate-preview">
-                    <div class="panel-heading"><h2>PDF Preview</h2><span><?= $generatedId ? 'Generated from policy data' : 'Preview will appear here' ?></span></div>
+                    <div class="panel-heading"><h2>PDF Preview</h2><span><?= $generatedId ? 'Auto-generated draft' : 'Preview will appear here' ?></span></div>
                     <div class="certificate-preview-inner">
                         <div class="preview-status"><span class="status-pill <?= $generatedId ? 'is-active' : '' ?>"><?= $generatedId ? '● Preview ready' : 'Waiting for preview' ?></span><span class="muted small">ACORD 25 · US Letter</span></div>
+                        <?php if ($generatedId): ?><p class="certificate-small-note">This draft is prepared automatically from your saved policy. Review the broker name and address before sending it.</p><?php endif; ?>
                         <?php if ($generatedId): ?>
                             <iframe id="certificatePreviewFrame" class="certificate-pdf-frame" title="Certificate of Insurance PDF preview" src="<?= customerText(appUrl('/customer/index.php?file='.$generatedId)) ?>#toolbar=0&navpanes=0&scrollbar=0&view=FitH"></iframe>
                             <div class="certificate-preview-actions"><a class="btn primary" href="<?= customerText(appUrl('/customer/index.php?file='.$generatedId.'&download=1')) ?>">↓ Download PDF</a><a class="btn secondary" href="<?= customerText(appUrl('/customer/index.php?file='.$generatedId)) ?>" target="_blank" rel="noopener">⎙ Print Certificate</a></div>
