@@ -8,16 +8,27 @@ $counts=[];foreach(['insureds'=>'Insured Customers','vehicles'=>'Vehicles','poli
 $policyExpiringCount=0;
 $expiringPolicies=[];
 try {
+ // Policy expiry may be stored in the main column or per-coverage data.
  $q=db()->query(
-  "SELECT p.id,p.policy_number,p.expiration_date,
-          COALESCE(NULLIF(p.insurer_a_name,''),NULLIF(p.carrier_name,''),'—') AS carrier_name,
+  "SELECT expiring.id,expiring.policy_number,expiring.expiration_date,
+          COALESCE(NULLIF(expiring.insurer_a_name,''),NULLIF(expiring.carrier_name,''),'—') AS carrier_name,
+          expiring.status,
           i.legal_name,i.dot_number,i.email,i.phone,
-          DATEDIFF(p.expiration_date,CURDATE()) AS days_remaining
-   FROM policies p
-   INNER JOIN insureds i ON i.id=p.insured_id
-   WHERE p.status='active'
-     AND p.expiration_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(),INTERVAL 7 DAY)
-   ORDER BY p.expiration_date ASC,i.legal_name ASC"
+          DATEDIFF(expiring.expiration_date,CURDATE()) AS days_remaining
+   FROM (
+     SELECT p.id,p.insured_id,p.policy_number,p.status,p.insurer_a_name,p.carrier_name,
+            LEAST(
+              COALESCE(p.expiration_date,CAST('9999-12-31' AS DATE)),
+              COALESCE(STR_TO_DATE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(p.coverage_data,'$.commercial_general_liability.expiration_date')),''),'%Y-%m-%d'),CAST('9999-12-31' AS DATE)),
+              COALESCE(STR_TO_DATE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(p.coverage_data,'$.physical_damage.expiration_date')),''),'%Y-%m-%d'),CAST('9999-12-31' AS DATE)),
+              COALESCE(STR_TO_DATE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(p.coverage_data,'$.motor_truck_cargo.expiration_date')),''),'%Y-%m-%d'),CAST('9999-12-31' AS DATE))
+            ) AS expiration_date
+     FROM policies p
+     WHERE LOWER(COALESCE(p.status,'')) IN ('active','draft')
+   ) AS expiring
+   INNER JOIN insureds i ON i.id=expiring.insured_id
+   WHERE expiring.expiration_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(),INTERVAL 7 DAY)
+   ORDER BY expiring.expiration_date ASC,i.legal_name ASC"
  );
  $expiringPolicies=$q->fetchAll();
  $policyExpiringCount=count($expiringPolicies);
@@ -51,14 +62,14 @@ $recordModules=[
 </div></section>
 <section class="dashboard-section" id="expiring-policies">
 <div class="section-title-row">
- <div><h2>Policies Expiring in Next 7 Days</h2><p class="muted">Active policies expiring today through the next seven calendar days, sorted by expiry date.</p></div>
+ <div><h2>Policies Expiring in Next 7 Days</h2><p class="muted">Active and draft policies with an upcoming expiry in the next seven calendar days, including coverage-specific end dates.</p></div>
  <a class="btn light small-btn" href="<?=e(appUrl('/agency/crud.php?entity=policies'))?>">View All Policies</a>
 </div>
 <div class="module-card">
  <?php if ($expiringPolicies): ?>
  <div class="table-wrap">
   <table>
-   <thead><tr><th>Customer / Insured</th><th>DOT Number</th><th>Policy Number</th><th>Insurance Carrier</th><th>Expiry Date</th><th>Time Left</th><th>Contact</th></tr></thead>
+   <thead><tr><th>Customer / Insured</th><th>DOT Number</th><th>Policy Number</th><th>Insurance Carrier</th><th>Status</th><th>Expiry Date</th><th>Time Left</th><th>Contact</th></tr></thead>
    <tbody>
     <?php foreach ($expiringPolicies as $policy): ?>
      <tr>
@@ -66,6 +77,7 @@ $recordModules=[
       <td><?=e((string)$policy['dot_number'])?></td>
       <td><?=e((string)$policy['policy_number'])?></td>
       <td><?=e((string)$policy['carrier_name'])?></td>
+      <td><?=e(ucfirst((string)$policy['status']))?></td>
       <td><strong><?=e(date('M j, Y',strtotime((string)$policy['expiration_date'])))?></strong></td>
       <td><strong><?=((int)$policy['days_remaining'])===0?'Expires today':((int)$policy['days_remaining']).' day(s)'?></strong></td>
       <td><?php if (!empty($policy['email'])): ?><a href="mailto:<?=e((string)$policy['email'])?>"><?=e((string)$policy['email'])?></a><?php endif; ?><?php if (!empty($policy['phone'])): ?><?=!empty($policy['email'])?' · ':''?><?=e((string)$policy['phone'])?><?php endif; ?><?php if (empty($policy['email'])&&empty($policy['phone'])): ?>—<?php endif; ?></td>
