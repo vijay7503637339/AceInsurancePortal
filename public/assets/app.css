@@ -975,3 +975,154 @@
  .certificate-success-done{transition:none}
  .certificate-success-done:hover{transform:none}
 }
+
+
+/* Customer portal: separate insurance coverage cards */
+.customer-coverages-panel{
+ display:flex;flex-direction:column;gap:17px;
+ padding:22px;background:#fff;
+}
+.customer-coverages-heading{
+ display:flex;align-items:center;justify-content:space-between;gap:14px;
+}
+.customer-coverages-heading h2{margin:0;color:#1d2e4f;font-size:19px;font-weight:850;letter-spacing:-.35px}
+.customer-coverages-heading p{margin:5px 0 0;line-height:1.6}
+.customer-coverage-grid{
+ display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+ gap:16px;align-items:start;
+}
+.customer-coverage-card{
+ display:flex;flex-direction:column;gap:15px;min-width:0;
+ padding:19px;border:1px solid #dce6f3;border-radius:13px;
+ background:linear-gradient(180deg,#ffffff 0%,#fbfdff 100%);
+ box-shadow:0 3px 12px rgba(25,49,82,.045);
+ transition:border-color .16s,box-shadow .16s,transform .16s;
+}
+.customer-coverage-card:hover{
+ border-color:#bdcfe5;box-shadow:0 8px 21px rgba(25,49,82,.075);
+ transform:translateY(-1px);
+}
+.customer-coverage-card-head{
+ display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
+ min-width:0;
+}
+.customer-coverage-title-wrap{display:flex;align-items:center;gap:11px;min-width:0}
+.customer-coverage-symbol{
+ display:flex;align-items:center;justify-content:center;flex:0 0 43px;
+ width:43px;height:43px;border:1px solid #dce6f3;border-radius:11px;
+ background:#f0f5fc;color:#244a7a;font-size:11px;font-weight:900;
+ letter-spacing:.3px;
+}
+.customer-coverage-title{display:flex;flex-direction:column;gap:5px;min-width:0}
+.customer-coverage-title h3{
+ margin:0;color:#1d2e4f;font-size:14px;font-weight:850;line-height:1.35;
+ overflow-wrap:anywhere;
+}
+.customer-coverage-title>span{
+ color:#8492a7;font-size:10px;font-weight:650;overflow-wrap:anywhere;
+}
+.customer-coverage-status{
+ flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;
+ min-height:25px;padding:4px 9px;border:1px solid #dce4ed;border-radius:999px;
+ background:#f3f6fa;color:#64748b;font-size:9px;font-weight:850;
+ letter-spacing:.35px;text-transform:uppercase;white-space:nowrap;
+}
+.customer-coverage-status.is-active{border-color:#ccebd9;background:#edf9f2;color:#16804f}
+.customer-coverage-status.is-expired{border-color:#f0d3d0;background:#fff3f1;color:#b5473c}
+.customer-coverage-status.is-upcoming{border-color:#d5e3fb;background:#eff5ff;color:#315f9d}
+.customer-coverage-status.is-incomplete{border-color:#eadfca;background:#fff9ed;color:#92703c}
+.customer-coverage-period{
+ display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
+ align-items:center;gap:10px;padding:13px 14px;
+ border:1px solid #e6edf6;border-radius:10px;background:#f7faff;
+}
+.customer-coverage-period>div{display:flex;flex-direction:column;gap:6px;min-width:0}
+.customer-coverage-period>div:last-child{text-align:right}
+.customer-coverage-period>div>span{
+ color:#8190a5;font-size:9px;font-weight:850;letter-spacing:1px;
+}
+.customer-coverage-period strong{
+ color:#1c3151;font-size:14px;font-weight:850;font-variant-numeric:tabular-nums;
+ overflow-wrap:anywhere;
+}
+.customer-coverage-period-arrow{color:#8ba0bc;font-size:17px;font-weight:700}
+.customer-coverage-carrier{
+ display:flex;align-items:center;justify-content:space-between;gap:12px;
+ padding:0 2px;color:#78889e;font-size:11px;
+}
+.customer-coverage-carrier strong{color:#344b6a;font-size:11px;font-weight:800;text-align:right}
+.customer-coverage-highlights{
+ display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;
+}
+.customer-coverage-highlights>div{
+ display:flex;flex-direction:column;gap:5px;min-width:0;
+ padding:11px 12px;border:1px solid #e7edf5;border-radius:9px;background:#fff;
+}
+.customer-coverage-highlights>div>span{
+ color:#8291a5;font-size:9px;font-weight:800;line-height:1.4;
+}
+.customer-coverage-highlights>div>strong{
+ color:#203858;font-size:14px;font-weight:850;font-variant-numeric:tabular-nums;
+ overflow-wrap:anywhere;
+}
+.customer-coverage-options{display:flex;flex-direction:column;gap:8px}
+.customer-coverage-options>span{
+ color:#8291a5;font-size:9px;font-weight:850;letter-spacing:.8px;text-transform:uppercase;
+}
+.customer-coverage-options>div{display:flex;flex-wrap:wrap;gap:6px}
+.customer-coverage-options>div>span{
+ display:inline-flex;align-items:center;padding:5px 8px;
+ border:1px solid #e1e9f3;border-radius:6px;background:#f7faff;
+ color:#4b617f;font-size:10px;font-weight:700;
+}
+.customer-coverage-more{
+ border-top:1px solid #edf1f6;padding-top:11px;
+}
+.customer-coverage-more summary{
+ display:flex;align-items:center;gap:8px;color:#315b8e;
+ font-size:11px;font-weight:800;cursor:pointer;list-style:none;
+}
+.customer-coverage-more summary::-webkit-details-marker{display:none}
+.customer-coverage-more summary::after{
+ content:"+";margin-left:auto;color:#315b8e;font-size:17px;font-weight:500;
+}
+.customer-coverage-more[open] summary::after{content:"−"}
+.customer-coverage-detail-list{
+ display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;
+ padding-top:12px;
+}
+.customer-coverage-detail-list>div{
+ display:flex;flex-direction:column;gap:5px;min-width:0;
+ padding:9px 10px;border:1px solid #edf1f6;border-radius:7px;background:#fbfcfe;
+}
+.customer-coverage-detail-list>div>span{color:#7e8da2;font-size:9px;line-height:1.4}
+.customer-coverage-detail-list>div>strong{
+ color:#344b6a;font-size:11px;font-weight:800;overflow-wrap:anywhere;
+}
+.customer-coverage-description,.customer-coverage-note{
+ margin:10px 0 0;padding:10px 11px;border-radius:8px;
+ background:#f7f9fc;color:#718198;font-size:11px;line-height:1.65;
+}
+.customer-coverage-empty{
+ display:flex;flex-direction:column;align-items:center;justify-content:center;
+ padding:36px 18px;border:1px dashed #d6e0ed;border-radius:12px;
+ background:#fafcff;text-align:center;
+}
+.customer-coverage-empty>span{
+ display:flex;align-items:center;justify-content:center;width:48px;height:48px;
+ border-radius:14px;background:#eef4fb;color:#52739d;font-size:22px;
+}
+.customer-coverage-empty h3{margin:13px 0 5px;color:#263d5e;font-size:14px}
+.customer-coverage-empty p{margin:0;color:#8190a5;font-size:11px;line-height:1.6}
+@media(max-width:900px){
+ .customer-coverage-grid{grid-template-columns:minmax(0,1fr)}
+}
+@media(max-width:560px){
+ .customer-coverages-panel{padding:15px}
+ .customer-coverage-card{padding:15px;gap:13px}
+ .customer-coverage-card-head{align-items:flex-start;flex-wrap:wrap}
+ .customer-coverage-status{margin-left:54px}
+ .customer-coverage-period{gap:6px;padding:11px 10px}
+ .customer-coverage-period strong{font-size:12px}
+ .customer-coverage-highlights,.customer-coverage-detail-list{grid-template-columns:minmax(0,1fr)}
+}
