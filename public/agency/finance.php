@@ -103,6 +103,25 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
 if($action==='edit'&&$_SERVER['REQUEST_METHOD']!=='POST'){
  $id=filter_var($_GET['id']??null,FILTER_VALIDATE_INT);if(!$id||$id<1){http_response_code(400);exit('Invalid finance record ID.');}
  $q=db()->prepare('SELECT * FROM finance_billing WHERE id=:id');$q->execute(['id'=>$id]);$row=$q->fetch();if(!$row){http_response_code(404);exit('Finance record not found.');}$formId=(int)$id;$form=array_merge($form,$row);
+
+ $storedPlans=[];
+ if(!empty($row['finance_plans'])) {
+  $decodedPlans=json_decode((string)$row['finance_plans'],true);
+  if(is_array($decodedPlans))$storedPlans=$decodedPlans;
+ }
+ if($storedPlans) {
+  $plans=[];
+  foreach(array_slice($storedPlans,0,4) as $storedPlan) {
+   if(!is_array($storedPlan))continue;
+   $plans[]=array_merge($planDefaults,array_intersect_key($storedPlan,$planDefaults));
+  }
+ }
+ if(!$plans) {
+  // Backward compatibility: older billing rows contain a single plan in the original columns.
+  $legacyPlan=$planDefaults;
+  foreach(array_keys($planDefaults) as $planField)$legacyPlan[$planField]=$row[$planField]??$planDefaults[$planField];
+  $plans=[$legacyPlan];
+ }
 }
 if(!in_array($action,['list','add','edit'],true))$action='list';
 ?><!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Finance Billing Manage · ACE Insurance</title><link rel="stylesheet" href="<?=e(appUrl('/assets/app.css'))?>"></head><body>
