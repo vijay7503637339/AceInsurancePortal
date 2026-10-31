@@ -16,7 +16,9 @@ $fields=[
  ['pending_past_due','Pending / Past Due ($)','number',[],false,'0.01']
 ];
 $action=(string)($_GET['action']??'list');$error=null;$flash=getFlash();$formId=null;
-$form=['insured_id'=>'','policy_id'=>'','status'=>'Pending Setup','coverage_policy_type'=>'','finance_company'=>'','finance_company_other'=>'','finance_account_number'=>'','down_payment'=>'','installments'=>'','monthly_amount'=>'','next_due_date'=>'','pending_past_due'=>'','autopay'=>'','payment_method'=>'','last_payment_date'=>'','last_payment_amount'=>'','billing_notes'=>''];
+$planDefaults=['status'=>'Pending Setup','coverage_policy_type'=>'','finance_company'=>'','finance_company_other'=>'','finance_account_number'=>'','down_payment'=>'','installments'=>'','monthly_amount'=>'','next_due_date'=>'','pending_past_due'=>''];
+$plans=[$planDefaults];
+$form=['insured_id'=>'','policy_id'=>'','autopay'=>'','payment_method'=>'','last_payment_date'=>'','last_payment_amount'=>'','billing_notes'=>''];
 $insureds=db()->query('SELECT id,legal_name,dot_number,status FROM insureds ORDER BY legal_name')->fetchAll();
 $policies=db()->query('SELECT id,insured_id,policy_number,business_line FROM policies ORDER BY policy_number')->fetchAll();
 $money=static fn($v)=>$v===null||$v===''||!is_numeric($v)?'—':'$'.number_format((float)$v,2);
@@ -35,22 +37,64 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
    audit('delete','finance_billing',(int)$id,'Deleted Finance Billing record');flash('success','Finance record deleted.');redirect($base);
   }
   $form=[];
-  foreach(['insured_id','policy_id','status','coverage_policy_type','finance_company','finance_company_other','finance_account_number','down_payment','installments','monthly_amount','next_due_date','pending_past_due','autopay','payment_method','last_payment_date','last_payment_amount','billing_notes'] as $f)$form[$f]=trim((string)($_POST[$f]??''));
-  $form['finance_company_other']=substr($form['finance_company_other'],0,255);$form['finance_account_number']=substr($form['finance_account_number'],0,100);$form['billing_notes']=substr($form['billing_notes'],0,5000);
+  foreach(['insured_id','policy_id','autopay','payment_method','last_payment_date','last_payment_amount','billing_notes'] as $f)$form[$f]=trim((string)($_POST[$f]??''));
+  $form['billing_notes']=substr($form['billing_notes'],0,5000);
+  $rawPlans=$_POST['plans']??[];
+  if(!is_array($rawPlans))throw new \RuntimeException('Invalid Finance Plan data.');
+  if(count($rawPlans)<1)throw new \RuntimeException('At least one Finance Plan is required.');
+  if(count($rawPlans)>4)throw new \RuntimeException('A Finance Billing record can contain a maximum of four Finance Plans.');
+  $plans=[];
+  foreach(array_values($rawPlans) as $planIndex=>$rawPlan) {
+   if(!is_array($rawPlan))throw new \RuntimeException('Invalid Finance Plan '.($planIndex+1).'.');
+   $plan=$planDefaults;
+   foreach(array_keys($planDefaults) as $planField)$plan[$planField]=trim((string)($rawPlan[$planField]??''));
+   $plan['finance_company_other']=substr($plan['finance_company_other'],0,255);
+   $plan['finance_account_number']=substr($plan['finance_account_number'],0,100);
+   $plans[]=$plan;
+  }
   $action=$id?'edit':'add';$formId=$id?(int)$id:null;
   $insuredId=filter_var($form['insured_id'],FILTER_VALIDATE_INT);if(!$insuredId||$insuredId<1)throw new \RuntimeException('Select an insured customer.');
   $q=db()->prepare('SELECT id FROM insureds WHERE id=:id');$q->execute(['id'=>$insuredId]);if(!$q->fetch())throw new \RuntimeException('Insured customer not found.');
   $policyId=null;
   if($form['policy_id']!==''){$tmp=filter_var($form['policy_id'],FILTER_VALIDATE_INT);if(!$tmp||$tmp<1)throw new \RuntimeException('Select a valid policy.');$q=db()->prepare('SELECT id,insured_id FROM policies WHERE id=:id');$q->execute(['id'=>$tmp]);$p=$q->fetch();if(!$p||(int)$p['insured_id']!==(int)$insuredId)throw new \RuntimeException('The selected policy must belong to the selected insured customer.');$policyId=(int)$tmp;}
-  if(!in_array($form['status'],$statuses,true))throw new \RuntimeException('Select a valid Status.');
-  if(!in_array($form['coverage_policy_type'],$types,true))throw new \RuntimeException('Select a Coverage / Policy Type.');
-  if(!in_array($form['finance_company'],$companies,true))throw new \RuntimeException('Select a Finance Company.');
   if($form['autopay']!==''&&!in_array($form['autopay'],$autopayOptions,true))throw new \RuntimeException('Select a valid Autopay option.');
   if($form['payment_method']!==''&&!in_array($form['payment_method'],$paymentMethods,true))throw new \RuntimeException('Select a valid Payment Method.');
   $amount=static function(string $v,string $label):?string{if($v==='')return null;if(!is_numeric($v)||(float)$v<0||!is_finite((float)$v))throw new \RuntimeException($label.' must be a non-negative amount.');return number_format((float)$v,2,'.','');};
   $dateInput=static function(string $v,string $label):?string{if($v==='')return null;$d=\DateTimeImmutable::createFromFormat('!Y-m-d',$v);if(!$d||$d->format('Y-m-d')!==$v)throw new \RuntimeException('Enter a valid '.$label.'.');return $v;};
-  $inst=null;if($form['installments']!==''){if(!ctype_digit($form['installments'])||(int)$form['installments']>1000)throw new \RuntimeException('Installments must be a whole number from 0 to 1000.');$inst=(int)$form['installments'];}
-  $data=['insured_id'=>(int)$insuredId,'policy_id'=>$policyId,'status'=>$form['status'],'coverage_policy_type'=>$form['coverage_policy_type'],'finance_company'=>$form['finance_company'],'finance_company_other'=>$form['finance_company']==='Other / Direct Bill / New Finance Co.'&&$form['finance_company_other']!==''?$form['finance_company_other']:null,'finance_account_number'=>$form['finance_account_number']!==''?$form['finance_account_number']:null,'down_payment'=>$amount($form['down_payment'],'Down Payment'),'installments'=>$inst,'monthly_amount'=>$amount($form['monthly_amount'],'Monthly Amount'),'next_due_date'=>$dateInput($form['next_due_date'],'Next Due Date'),'pending_past_due'=>$amount($form['pending_past_due'],'Pending / Past Due'),'autopay'=>$form['autopay']!==''?$form['autopay']:null,'payment_method'=>$form['payment_method']!==''?$form['payment_method']:null,'last_payment_date'=>$dateInput($form['last_payment_date'],'Last Payment Date'),'last_payment_amount'=>$amount($form['last_payment_amount'],'Last Payment Amount'),'billing_notes'=>$form['billing_notes']!==''?$form['billing_notes']:null];
+
+  $cleanPlans=[];
+  foreach($plans as $planIndex=>$plan) {
+   $planLabel='Finance Plan '.($planIndex+1);
+   if(!in_array($plan['status'],$statuses,true))throw new \RuntimeException($planLabel.': select a valid Status.');
+   if(!in_array($plan['coverage_policy_type'],$types,true))throw new \RuntimeException($planLabel.': select a Coverage / Policy Type.');
+   if(!in_array($plan['finance_company'],$companies,true))throw new \RuntimeException($planLabel.': select a Finance Company.');
+
+   $inst=null;
+   if($plan['installments']!=='') {
+    if(!ctype_digit($plan['installments'])||(int)$plan['installments']>1000)throw new \RuntimeException($planLabel.': Installments must be a whole number from 0 to 1000.');
+    $inst=(int)$plan['installments'];
+   }
+   $cleanPlans[]=[
+    'status'=>$plan['status'],
+    'coverage_policy_type'=>$plan['coverage_policy_type'],
+    'finance_company'=>$plan['finance_company'],
+    'finance_company_other'=>$plan['finance_company']==='Other / Direct Bill / New Finance Co.'&&$plan['finance_company_other']!==''?$plan['finance_company_other']:null,
+    'finance_account_number'=>$plan['finance_account_number']!==''?$plan['finance_account_number']:null,
+    'down_payment'=>$amount($plan['down_payment'],$planLabel.' Down Payment'),
+    'installments'=>$inst,
+    'monthly_amount'=>$amount($plan['monthly_amount'],$planLabel.' Monthly Amount'),
+    'next_due_date'=>$dateInput($plan['next_due_date'],$planLabel.' Next Due Date'),
+    'pending_past_due'=>$amount($plan['pending_past_due'],$planLabel.' Pending / Past Due')
+   ];
+  }
+  $firstPlan=$cleanPlans[0];
+  $data=['insured_id'=>(int)$insuredId,'policy_id'=>$policyId]+$firstPlan;
+  $data['finance_plans']=json_encode($cleanPlans,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR);
+  $data['autopay']=$form['autopay']!==''?$form['autopay']:null;
+  $data['payment_method']=$form['payment_method']!==''?$form['payment_method']:null;
+  $data['last_payment_date']=$dateInput($form['last_payment_date'],'Last Payment Date');
+  $data['last_payment_amount']=$amount($form['last_payment_amount'],'Last Payment Amount');
+  $data['billing_notes']=$form['billing_notes']!==''?$form['billing_notes']:null;
   if($id){$q=db()->prepare('SELECT id FROM finance_billing WHERE id=:id');$q->execute(['id'=>$id]);if(!$q->fetch())throw new \RuntimeException('Finance record not found; refresh and retry.');$data['updated_by']=(int)$u['id'];$sets=[];foreach(array_keys($data) as $f)$sets[]=$f.'=:'.$f;$data['id']=(int)$id;db()->prepare('UPDATE finance_billing SET '.implode(',',$sets).' WHERE id=:id')->execute($data);audit('update','finance_billing',(int)$id,'Updated Finance Billing record');flash('success','Finance record updated.');}
   else{$data['created_by']=(int)$u['id'];$data['updated_by']=(int)$u['id'];$cols=array_keys($data);$params=array_map(static fn($f)=>':'.$f,$cols);db()->prepare('INSERT INTO finance_billing ('.implode(',',$cols).') VALUES ('.implode(',',$params).')')->execute($data);audit('create','finance_billing',(int)db()->lastInsertId(),'Created Finance Billing record');flash('success','Finance record added.');}
   redirect($base);
