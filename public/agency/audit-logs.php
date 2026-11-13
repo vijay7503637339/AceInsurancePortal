@@ -14,6 +14,19 @@ if (!in_array($roleFilter, ['', 'admin', 'staff', 'customer', '__system__'], tru
     $roleFilter = '';
 }
 
+$roles = db()->query("SELECT DISTINCT NULLIF(actor_role, '') AS actor_role FROM audit_logs ORDER BY actor_role")->fetchAll(PDO::FETCH_COLUMN);
+$actions = db()->query('SELECT DISTINCT action FROM audit_logs ORDER BY action')->fetchAll(PDO::FETCH_COLUMN);
+$entities = db()->query('SELECT DISTINCT entity_type FROM audit_logs ORDER BY entity_type')->fetchAll(PDO::FETCH_COLUMN);
+$actorOptions = db()->query(
+    "SELECT a.actor_user_id,
+        COALESCE(MAX(u.full_name), CASE WHEN a.actor_user_id IS NULL THEN 'System / Unknown' ELSE CONCAT('Deleted user #', a.actor_user_id) END) AS actor_name,
+        GROUP_CONCAT(DISTINCT a.actor_role ORDER BY a.actor_role SEPARATOR ', ') AS actor_roles
+     FROM audit_logs a
+     LEFT JOIN users u ON u.id = a.actor_user_id
+     GROUP BY a.actor_user_id
+     ORDER BY actor_name"
+)->fetchAll();
+
 $hasSystemRole = in_array(null, $roles, true) || in_array('', $roles, true);
 
 // Validate the selected actor against the selected role before building the log query.
@@ -30,9 +43,6 @@ foreach ($actorOptions as $option) {
 if ($actorFilter !== '' && !in_array($actorFilter, $availableActorValues, true)) {
     $actorFilter = '';
 }
-
-$conditions = [];
-$params = [];
 
 $conditions = [];
 $params = [];
@@ -103,18 +113,7 @@ if ($totalPages <= 7) {
     $pageItems = [1, 'ellipsis', $page - 1, $page, $page + 1, 'ellipsis', $totalPages];
 }
 
-$roles = db()->query("SELECT DISTINCT NULLIF(actor_role, '') AS actor_role FROM audit_logs ORDER BY actor_role")->fetchAll(PDO::FETCH_COLUMN);
-$actions = db()->query('SELECT DISTINCT action FROM audit_logs ORDER BY action')->fetchAll(PDO::FETCH_COLUMN);
-$entities = db()->query('SELECT DISTINCT entity_type FROM audit_logs ORDER BY entity_type')->fetchAll(PDO::FETCH_COLUMN);
-$actorOptions = db()->query(
-    "SELECT a.actor_user_id,
-        COALESCE(MAX(u.full_name), CASE WHEN a.actor_user_id IS NULL THEN 'System / Unknown' ELSE CONCAT('Deleted user #', a.actor_user_id) END) AS actor_name,
-        GROUP_CONCAT(DISTINCT a.actor_role ORDER BY a.actor_role SEPARATOR ', ') AS actor_roles
-     FROM audit_logs a
-     LEFT JOIN users u ON u.id = a.actor_user_id
-     GROUP BY a.actor_user_id
-     ORDER BY actor_name"
-)->fetchAll();
+
 
 ?><!doctype html>
 <html lang="en">
