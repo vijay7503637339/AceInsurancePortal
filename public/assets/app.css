@@ -1474,3 +1474,12 @@
     .policy-table-panel .section-heading .muted{max-width:42%;text-align:right}
 }
 
+
+/* US-style date entry controls for agency forms */
+.us-date-control{position:relative;display:flex;align-items:stretch;width:100%;min-width:0}
+.us-date-control>.us-date-display{flex:1 1 auto;width:100%;min-width:0;border-top-right-radius:0!important;border-bottom-right-radius:0!important}
+.us-date-control>.us-date-trigger{flex:0 0 42px;width:42px;min-width:42px;display:inline-flex;align-items:center;justify-content:center;padding:0;border:1px solid #cbd9ec;border-left:0;border-radius:0 7px 7px 0;background:#f6f9fe;color:#344968;font:inherit;font-size:16px;cursor:pointer}
+.us-date-control>.us-date-trigger:hover{background:#edf4ff}
+.us-date-control>.us-date-trigger:disabled{opacity:.5;cursor:not-allowed}
+.us-date-control>.us-date-native{position:absolute!important;top:0;right:42px;width:1px!important;height:1px!important;min-height:1px!important;padding:0!important;margin:0!important;border:0!important;opacity:0!important;pointer-events:none!important;overflow:hidden!important;clip:rect(0,0,0,0)!important}
+.us-date-control>.us-date-display:disabled{background:#f1f6fc;cursor:not-allowed}
