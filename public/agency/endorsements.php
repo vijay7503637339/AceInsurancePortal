@@ -361,6 +361,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw $exception;
         }
 
+        $emailDetails = [];
+        if ($category === 'driver' && $actionType === 'add') {
+            $emailDetails = [
+                'Driver Name: '.(string)($name ?? ''),
+                'License Number: '.(string)($license ?? 'Not provided'),
+                'License State: '.(string)($state ?? 'Not provided'),
+                'Date of Birth: '.(string)($dob ?? 'Not provided'),
+                'Excluded: '.((string)($excluded ?? '0') === '1' ? 'Yes' : 'No')
+            ];
+        } elseif ($category === 'vehicle' && $actionType === 'add') {
+            $emailDetails = [
+                'VIN: '.(string)($vin ?? ''),
+                'Unit Number: '.(string)($unit ?? 'Not provided'),
+                'Vehicle Type: '.(string)($vehicleType ?? 'Not provided'),
+                'Make / Model: '.trim((string)($make ?? '').' '.(string)($model ?? '')),
+                'Model Year: '.(string)($year ?? 'Not provided'),
+                'Vehicle Value: '.(string)($value ?? 'Not provided')
+            ];
+        }
+
         $emailStatus = $recipient === '' ? 'no_email' : 'failed';
         $emailError = $recipient === '' ? 'No customer email address is stored for this insured.' : null;
         if ($recipient !== '' && filter_var($recipient,FILTER_VALIDATE_EMAIL)) {
@@ -370,7 +390,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (!filter_var($from,FILTER_VALIDATE_EMAIL)) throw new RuntimeException('Configure a valid sender address in config/mail.php.');
                 $fromName = str_replace(["\r","\n"],'',(string)($mailConfig['from_name'] ?? 'Ace Insurance Portal'));
                 $subject = 'Endorsement Confirmation '.$number;
-                $body = "Hello ".$customer['legal_name'].",\n\nYour policy endorsement has been processed.\n\nEndorsement: ".$number."\nPolicy Number: ".$policy['policy_number']."\nChange: ".$summary."\n\nPlease retain this email for your records. Contact your insurance agency if you have questions.\n\nRegards,\n".$fromName;
+                $detailText = $emailDetails ? implode("\n",$emailDetails) : $summary;
+                $body = "Hello ".$customer['legal_name'].",\n\nYour policy endorsement has been processed.\n\nEndorsement: ".$number."\nPolicy Number: ".$policy['policy_number']."\nChange: ".$summary."\n\nChange Details:\n".$detailText."\n\nPlease retain this email for your records. Contact your insurance agency if you have questions.\n\nRegards,\n".$fromName;
                 $headers = "From: ".$fromName." <".$from.">\r\nContent-Type: text/plain; charset=UTF-8\r\nX-Mailer: PHP/".PHP_VERSION;
                 if (mail($recipient,$subject,$body,$headers)) {
                     $emailStatus = 'sent';
