@@ -40,7 +40,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
   if($action==='edit'&&!$saveId)throw new \InvalidArgumentException('Record ID is missing. Return to the list and reopen this record.');
   if(in_array($key,['policies','vehicles','drivers'],true)){
    $workflowInsuredId=filter_var($_POST['insured_id']??null,FILTER_VALIDATE_INT);
-   if(!$workflowInsuredId||$workflowInsuredId<1)throw new \\InvalidArgumentException('Select an insured customer.');
+   if(!$workflowInsuredId||$workflowInsuredId<1)throw new \InvalidArgumentException('Select an insured customer.');
   }
   $savedRecordId=Crud::save($key,$_POST,$saveId?(int)$saveId:null,(int)$u['id']);
   if(in_array($key,['policies','vehicles','drivers'],true)){
