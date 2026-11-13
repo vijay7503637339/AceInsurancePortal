@@ -26,7 +26,7 @@ if ($insuredId > 0) {
     if (!$customer) {
         $insuredId = 0;
     } else {
-        $q = db()->prepare("SELECT id, policy_number, business_line, status, effective_date, expiration_date, total_premium FROM policies WHERE insured_id = :insured_id ORDER BY CASE WHEN status = 'active' THEN 0 ELSE 1 END, id DESC");
+        $q = db()->prepare("SELECT id, policy_number, business_line, status, effective_date, expiration_date, total_premium, coverage_data FROM policies WHERE insured_id = :insured_id ORDER BY CASE WHEN status = 'active' THEN 0 ELSE 1 END, id DESC");
         $q->execute(['insured_id' => $insuredId]);
         $policies = $q->fetchAll();
 
@@ -47,6 +47,14 @@ if ($insuredId > 0) {
             }
         }
         if (!$selectedPolicy && $policies) $selectedPolicy = $policies[0];
+    }
+}
+
+$selectedCoverageKeys = [];
+if ($selectedPolicy && !empty($selectedPolicy['coverage_data'])) {
+    $selectedPolicyCoverageData = json_decode((string)$selectedPolicy['coverage_data'], true);
+    if (is_array($selectedPolicyCoverageData) && is_array($selectedPolicyCoverageData['insurance_types'] ?? null)) {
+        $selectedCoverageKeys = array_values(array_unique(array_map('strval', $selectedPolicyCoverageData['insurance_types'])));
     }
 }
 
@@ -571,19 +579,19 @@ $selectedPolicyId = (int)($selectedPolicy['id'] ?? 0);
 
           <div class="endorsement-fields" data-category="policy" data-action="coverage_add" hidden>
             <h3>Add Coverage</h3>
-            <label>Coverage to Add<select name="coverage_type" data-required><option value="">Select coverage...</option><?php foreach($coverageTypes as $key=>$label):?><option value="<?=e($key)?>"><?=e($label)?></option><?php endforeach;?></select></label>
+            <label>Coverage to Add<select name="coverage_type" data-required><option value="">Select coverage...</option><?php foreach($coverageTypes as $key=>$label):if(in_array($key,$selectedCoverageKeys,true))continue;?><option value="<?=e($key)?>"><?=e($label)?></option><?php endforeach;?></select></label>
             <p class="endorsement-help">The coverage type will be added to this policy. Insurer A is set as the initial carrier; carrier and detailed limits can be reviewed in the Policy section.</p>
           </div>
 
           <div class="endorsement-fields" data-category="policy" data-action="coverage_remove" hidden>
             <h3>Remove Coverage</h3>
-            <label>Coverage to Remove<select name="coverage_type" data-required><option value="">Select coverage...</option><?php foreach($coverageTypes as $key=>$label):?><option value="<?=e($key)?>"><?=e($label)?></option><?php endforeach;?></select></label>
+            <label>Coverage to Remove<select name="coverage_type" data-required><option value="">Select coverage...</option><?php foreach($coverageTypes as $key=>$label):if(!in_array($key,$selectedCoverageKeys,true))continue;?><option value="<?=e($key)?>"><?=e($label)?></option><?php endforeach;?></select></label>
             <p class="endorsement-help">Only the chosen coverage is removed from the policy. Before and after data is retained in the endorsement history.</p>
           </div>
 
           <div class="endorsement-fields" data-category="policy" data-action="coverage_amount_update" hidden>
             <h3>Update Coverage Amount</h3>
-            <label>Coverage<select name="coverage_type" id="endorsement-coverage-type" data-required><option value="">Select coverage...</option><?php foreach($coverageTypes as $key=>$label):?><option value="<?=e($key)?>"><?=e($label)?></option><?php endforeach;?></select></label>
+            <label>Coverage<select name="coverage_type" id="endorsement-coverage-type" data-required><option value="">Select coverage...</option><?php foreach($coverageTypes as $key=>$label):if(!in_array($key,$selectedCoverageKeys,true)||!in_array($key,['commercial_general_liability','automobile_liability','physical_damage','motor_truck_cargo','umbrella_liability','excess_liability'],true))continue;?><option value="<?=e($key)?>"><?=e($label)?></option><?php endforeach;?></select></label>
             <label>Amount Field
               <select name="coverage_amount_field" id="endorsement-coverage-amount-field" data-required>
                 <option value="each_occurrence" data-coverage="commercial_general_liability">Each Occurrence</option>
