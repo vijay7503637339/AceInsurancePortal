@@ -29,11 +29,17 @@
   function normalizeTypedValue(display) {
     const oldValue = display.value;
     if (oldValue.indexOf('/') !== -1) {
-      const parts = oldValue.split('/').slice(0, 3).map(function (part, index) {
-        return part.replace(/\D/g, '').slice(0, index === 2 ? 4 : 2);
+      const rawParts = oldValue.split('/');
+      const brokenSeparator = rawParts.length > 3 || rawParts.slice(0, 2).some(function (part) {
+        return part.replace(/\D/g, '').length > 2;
       });
-      display.value = parts.join('/');
-      return;
+      if (!brokenSeparator) {
+        const parts = rawParts.slice(0, 3).map(function (part, index) {
+          return part.replace(/\D/g, '').slice(0, index === 2 ? 4 : 2);
+        });
+        display.value = parts.join('/');
+        return;
+      }
     }
 
     const caret = display.selectionStart === null ? oldValue.length : display.selectionStart;
