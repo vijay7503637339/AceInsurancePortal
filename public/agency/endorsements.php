@@ -173,19 +173,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ($vin === '') throw new InvalidArgumentException('Enter the vehicle VIN.');
                     if ($year !== '' && (!ctype_digit($year) || (int)$year < 1900 || (int)$year > 2100)) throw new InvalidArgumentException('Enter a valid vehicle model year.');
 
-                    $q = $pdo->prepare("INSERT INTO vehicles (insured_id, vin, unit_number, vehicle_type, make, model, model_year, value_amount, status, created_by) VALUES (:insured_id, :vin, :unit_number, :vehicle_type, :make, :model, :model_year, :value_amount, 'active', :created_by)");
-                    $q->execute([
-                        'insured_id' => $insuredId,
-                        'vin' => $vin,
-                        'unit_number' => $unit !== '' ? $unit : null,
-                        'vehicle_type' => $vehicleType !== '' ? $vehicleType : null,
-                        'make' => $make !== '' ? $make : null,
-                        'model' => $model !== '' ? $model : null,
-                        'model_year' => $year !== '' ? (int)$year : null,
-                        'value_amount' => $value,
-                        'created_by' => (int)$u['id']
-                    ]);
-                    $subjectId = (int)$pdo->lastInsertId();
+                    $existingQuery = $pdo->prepare('SELECT * FROM vehicles WHERE vin = :vin LIMIT 1 FOR UPDATE');
+                    $existingQuery->execute(['vin' => $vin]);
+                    $existingVehicle = $existingQuery->fetch();
+                    if ($existingVehicle) {
+                        if ((int)$existingVehicle['insured_id'] !== $insuredId) {
+                            throw new InvalidArgumentException('This VIN is already registered to another insured customer.');
+                        }
+                        if ((string)$existingVehicle['status'] === 'active') {
+                            throw new InvalidArgumentException('This vehicle is already active for this customer.');
+                        }
+                        $before = $existingVehicle;
+                        $subjectId = (int)$existingVehicle['id'];
+                        $q = $pdo->prepare("UPDATE vehicles SET unit_number = :unit_number, vehicle_type = :vehicle_type, make = :make, model = :model, model_year = :model_year, value_amount = :value_amount, status = 'active' WHERE id = :id AND insured_id = :insured_id");
+                        $q->execute([
+                            'unit_number' => $unit !== '' ? $unit : null,
+                            'vehicle_type' => $vehicleType !== '' ? $vehicleType : null,
+                            'make' => $make !== '' ? $make : null,
+                            'model' => $model !== '' ? $model : null,
+                            'model_year' => $year !== '' ? (int)$year : null,
+                            'value_amount' => $value,
+                            'id' => $subjectId,
+                            'insured_id' => $insuredId
+                        ]);
+                    } else {
+                        $q = $pdo->prepare("INSERT INTO vehicles (insured_id, vin, unit_number, vehicle_type, make, model, model_year, value_amount, status, created_by) VALUES (:insured_id, :vin, :unit_number, :vehicle_type, :make, :model, :model_year, :value_amount, 'active', :created_by)");
+                        $q->execute([
+                            'insured_id' => $insuredId,
+                            'vin' => $vin,
+                            'unit_number' => $unit !== '' ? $unit : null,
+                            'vehicle_type' => $vehicleType !== '' ? $vehicleType : null,
+                            'make' => $make !== '' ? $make : null,
+                            'model' => $model !== '' ? $model : null,
+                            'model_year' => $year !== '' ? (int)$year : null,
+                            'value_amount' => $value,
+                            'created_by' => (int)$u['id']
+                        ]);
+                        $subjectId = (int)$pdo->lastInsertId();
+                    }
                     $activeVehicles = $pdo->prepare("SELECT id FROM vehicles WHERE insured_id = :insured_id AND status = 'active'");
                     $activeVehicles->execute(['insured_id' => $insuredId]);
                     $linkVehicle = $pdo->prepare('INSERT IGNORE INTO policy_vehicles (policy_id, vehicle_id) VALUES (:policy_id, :vehicle_id)');
@@ -195,8 +220,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $q = $pdo->prepare('SELECT * FROM vehicles WHERE id = :id');
                     $q->execute(['id' => $subjectId]);
                     $after = $q->fetch();
-                    $summary = 'Added vehicle '.$vin.' to the selected customer and policy.';
-                    $detail = ['vehicle' => $after];
+                    $summary = ($before ? 'Reactivated previously removed vehicle ' : 'Added vehicle ').$vin.' for the selected customer and policy.';
+                    $detail = ['vehicle_before' => $before, 'vehicle_after' => $after, 'record_action' => $before ? 'reactivated' : 'added'];
                 } elseif ($actionType === 'remove' || $actionType === 'value_update') {
                     $subjectId = filter_var($_POST['vehicle_id'] ?? null, FILTER_VALIDATE_INT);
                     if (!$subjectId || $subjectId < 1) throw new InvalidArgumentException('Select a vehicle.');
