@@ -15,8 +15,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($currentPassword === '' || $newPassword === '' || $confirmPassword === '') {
         $error = 'Please complete all password fields.';
-    } elseif (mb_strlen($newPassword) < 12) {
-        $error = 'Your new password must contain at least 12 characters.';
+    } elseif (mb_strlen($newPassword) < 6 || mb_strlen($newPassword) > 12) {
+        $error = 'Your new password must be between 6 and 12 characters.';
     } elseif (!hash_equals($newPassword, $confirmPassword)) {
         $error = 'The new password and confirmation do not match.';
     } else {
@@ -85,7 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <section class="panel change-password-panel">
       <div class="change-password-heading">
         <div class="change-password-icon" aria-hidden="true">♙</div>
-        <div><h2>Account security</h2><p class="muted">Use at least 12 characters. A unique passphrase is recommended.</p></div>
+        <div><h2>Account security</h2><p class="muted">Choose a password between 6 and 12 characters.</p></div>
       </div>
       <form method="post" class="change-password-form" autocomplete="on">
         <input type="hidden" name="_csrf" value="<?=e(csrfToken())?>">
@@ -93,10 +93,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           <input type="password" name="current_password" autocomplete="current-password" required>
         </label>
         <label>New Password
-          <input type="password" name="new_password" autocomplete="new-password" minlength="12" required>
+          <input type="password" name="new_password" autocomplete="new-password" minlength="6" maxlength="12" required>
         </label>
         <label>Confirm New Password
-          <input type="password" name="confirm_password" autocomplete="new-password" minlength="12" required>
+          <input type="password" name="confirm_password" autocomplete="new-password" minlength="6" maxlength="12" required>
         </label>
         <div class="change-password-help">Your current password is required to confirm this change.</div>
         <div class="form-actions"><button class="btn primary" type="submit">Update Password</button><a class="btn light" href="<?=e(appUrl('/agency/index.php'))?>">Cancel</a></div>
