@@ -1515,3 +1515,17 @@
  .crud-workflow-actions{grid-template-columns:1fr}
 }
 @media(prefers-reduced-motion:reduce){.crud-workflow-modal{animation:none}}
+
+
+/* Searchable U.S. license-state dropdown */
+.license-state-field{display:flex;flex-direction:column;gap:8px;min-width:0;font-weight:600}
+.searchable-state-select{position:relative;width:100%;min-width:0}
+.searchable-state-input{width:100%;padding:12px;border:1px solid #cbd9ec;border-radius:7px;background:#fff;color:var(--text);font:inherit;outline:none}
+.searchable-state-input:focus{border-color:var(--blue);box-shadow:0 0 0 3px #1d2e4f18}
+.searchable-state-menu{position:absolute;top:calc(100% + 5px);left:0;right:0;z-index:1400;max-height:270px;overflow-y:auto;padding:5px;border:1px solid #cbd9ec;border-radius:8px;background:#fff;box-shadow:0 12px 28px #1b34551c}
+.searchable-state-menu[hidden],.searchable-state-option[hidden],.searchable-state-empty[hidden]{display:none}
+.searchable-state-option{display:flex;width:100%;align-items:center;justify-content:space-between;gap:12px;padding:10px 11px;border:0;border-radius:6px;background:#fff;color:#263b59;text-align:left;font:inherit;font-size:13px;cursor:pointer}
+.searchable-state-option:hover,.searchable-state-option.is-active{background:#edf4ff;color:#1d2e4f}
+.searchable-state-option[aria-selected=true]{font-weight:800;background:#f4f8ff}
+.searchable-state-option small{color:#71839e;font-size:11px;font-weight:700;letter-spacing:.04em}
+.searchable-state-empty{margin:0;padding:12px;color:var(--muted);font-size:12px;font-weight:500}
