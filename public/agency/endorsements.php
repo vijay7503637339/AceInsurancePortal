@@ -417,7 +417,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'id'=>$endorsementId
             ]);
         flash('success','Endorsement '.$number.' processed. Email status: '.str_replace('_',' ',$emailStatus).($emailError ? ' — '.$emailError : ''));
-        redirect('/agency/endorsements.php?insured_id='.$insuredId);
+        redirect('/agency/endorsements.php?insured_id='.$insuredId.'&policy_id='.(int)$policyId);
     } catch (Throwable $exception) {
         error_log('Endorsement processing failed: '.$exception->getMessage());
         $error = $exception->getMessage();
@@ -641,7 +641,7 @@ $selectedPolicyId = (int)($selectedPolicy['id'] ?? 0);
             <div><span>Action</span><strong id="endorsement-review-action">Choose an action</strong></div>
           </div>
           <div class="endorsement-email-note">An email notification will be attempted to the customer's registered email. Email status is retained with the endorsement history.</div>
-          <div class="endorsement-form-actions"><button class="btn primary" type="submit">Submit Endorsement</button><a class="btn light" href="<?=e(appUrl('/agency/endorsements.php?insured_id='.$insuredId))?>">Cancel</a></div>
+          <div class="endorsement-form-actions"><button class="btn primary" type="submit">Submit Endorsement</button><a class="btn light" href="<?=e(appUrl('/agency/endorsements.php?insured_id='.$insuredId.'&policy_id='.$selectedPolicyId))?>">Cancel</a></div>
         </section>
       </form>
     <?php endif;?>
@@ -759,6 +759,17 @@ $selectedPolicyId = (int)($selectedPolicy['id'] ?? 0);
     });
   });
   action.addEventListener('change', render);
+  const policySelect = form.querySelector('select[name="policy_id"]');
+  if (policySelect) {
+    policySelect.addEventListener('change', function () {
+      const insuredInput = form.querySelector('input[name="insured_id"]');
+      const target = new URL(window.location.href);
+      target.search = '';
+      target.searchParams.set('insured_id', insuredInput ? insuredInput.value : '');
+      target.searchParams.set('policy_id', policySelect.value);
+      window.location.assign(target.toString());
+    });
+  }
   const coverage = document.getElementById('endorsement-coverage-type');
   if (coverage) coverage.addEventListener('change', updateCoverageAmountFields);
   const oldAction = <?=json_encode($selectedAction,JSON_UNESCAPED_SLASHES)?>;
