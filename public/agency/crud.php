@@ -54,7 +54,33 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
   flash('success',$action==='edit'?'Record updated.':'Record added.');redirect('/agency/crud.php?entity='.urlencode($key));
  }catch(\Throwable $x){
   error_log('Agency CRUD save failed for '.$key.': '.$x->getMessage());
-  $error=$x instanceof \PDOException&&(string)$x->getCode()==='23000'?'Duplicate value or linked record prevents this action.':$x->getMessage();
+  $error=$x->getMessage();
+  if($x instanceof \PDOException&&(string)$x->getCode()==='23000'){
+   $driverCode=(int)($x->errorInfo[1]??0);
+   $driverMessage=(string)($x->errorInfo[2]??'');
+   if($driverCode===1062){
+    $duplicateFields=[
+     'policy_number'=>'Policy Number',
+     'vin'=>'VIN',
+     'dot_number'=>'DOT Number',
+     'license_number'=>'Driver License Number',
+     'email'=>'Email Address'
+    ];
+    $duplicateLabel=null;
+    foreach($duplicateFields as $fieldName=>$fieldLabel){
+     if(stripos($driverMessage,$fieldName)!==false){$duplicateLabel=$fieldLabel;break;}
+    }
+    $error=$duplicateLabel
+     ?$duplicateLabel.' already exists. Please enter a different value.'
+     :'A record with one of these unique values already exists. Check the Policy Number or VIN and try again.';
+   }elseif($driverCode===1452){
+    $error='The selected Insured Customer is not available. Please select the customer again and retry.';
+   }elseif($driverCode===1451){
+    $error='This record is linked to another record and cannot be changed or deleted yet.';
+   }else{
+    $error='The database rejected this save because of a duplicate value or linked record. Check the entered values and selected Insured Customer.';
+   }
+  }
   if($postAction==='delete'){$action='list';$id=null;}else{
    $saveRaw=trim((string)($_POST['id']??''));$saveId=$saveRaw!==''?filter_var($saveRaw,FILTER_VALIDATE_INT):null;
    $action=$saveId?'edit':'add';$id=$saveId?(int)$saveId:null;$editing=$_POST;
