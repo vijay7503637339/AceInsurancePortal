@@ -10,6 +10,30 @@ $roleFilter = trim((string)($_GET['role'] ?? ''));
 $actionFilter = trim((string)($_GET['action'] ?? ''));
 $entityFilter = trim((string)($_GET['entity'] ?? ''));
 
+if (!in_array($roleFilter, ['', 'admin', 'staff', 'customer', '__system__'], true)) {
+    $roleFilter = '';
+}
+
+$hasSystemRole = in_array(null, $roles, true) || in_array('', $roles, true);
+
+// Validate the selected actor against the selected role before building the log query.
+// This also clears an actor left over from a previous role selection.
+$availableActorValues = [];
+foreach ($actorOptions as $option) {
+    $optionRoles = array_filter(array_map('trim', explode(',', (string)($option['actor_roles'] ?? ''))));
+    $matchesRole = $roleFilter === ''
+        || ($roleFilter === '__system__' ? !$optionRoles : in_array($roleFilter, $optionRoles, true));
+    if ($matchesRole) {
+        $availableActorValues[] = $option['actor_user_id'] === null ? 'system' : (string)$option['actor_user_id'];
+    }
+}
+if ($actorFilter !== '' && !in_array($actorFilter, $availableActorValues, true)) {
+    $actorFilter = '';
+}
+
+$conditions = [];
+$params = [];
+
 $conditions = [];
 $params = [];
 
@@ -129,24 +153,29 @@ $actorOptions = db()->query(
     <section class="panel audit-log-panel">
       <form class="audit-filter-form" method="get" action="<?=e(appUrl('/agency/audit-logs.php'))?>">
         <div class="audit-filters-grid">
+          <label>Role
+            <select name="role" id="audit-role-filter">
+              <option value="">All roles</option>
+              <option value="admin" <?=$roleFilter === 'admin' ? 'selected' : ''?>>Admin</option>
+              <option value="staff" <?=$roleFilter === 'staff' ? 'selected' : ''?>>Staff</option>
+              <option value="customer" <?=$roleFilter === 'customer' ? 'selected' : ''?>>Customer</option>
+              <?php if ($hasSystemRole): ?>
+                <option value="__system__" <?=$roleFilter === '__system__' ? 'selected' : ''?>>System / Unknown</option>
+              <?php endif; ?>
+            </select>
+            <span class="audit-filter-hint">Choose a role to narrow the actor list.</span>
+          </label>
           <label>Actor
-            <select name="actor">
+            <select name="actor" id="audit-actor-filter">
               <option value="">All actors</option>
               <?php foreach ($actorOptions as $option): ?>
-                <?php $optionValue = $option['actor_user_id'] === null ? 'system' : (string)$option['actor_user_id']; ?>
-                <option value="<?=e($optionValue)?>" <?=$actorFilter === $optionValue ? 'selected' : ''?>><?=e((string)$option['actor_name'])?><?=!empty($option['actor_roles']) ? ' · '.e((string)$option['actor_roles']) : ''?></option>
-              <?php endforeach; ?>
-            </select>
-          </label>
-          <label>Role
-            <select name="role">
-              <option value="">All roles</option>
-              <?php foreach ($roles as $role): ?>
-                <?php if ($role === null || $role === ''): ?>
-                  <option value="__system__" <?=$roleFilter === '__system__' ? 'selected' : ''?>>System / Unknown</option>
-                <?php else: ?>
-                  <option value="<?=e((string)$role)?>" <?=$roleFilter === (string)$role ? 'selected' : ''?>><?=e((string)$role)?></option>
-                <?php endif; ?>
+                <?php
+                  $optionValue = $option['actor_user_id'] === null ? 'system' : (string)$option['actor_user_id'];
+                  $optionRoles = array_filter(array_map('trim', explode(',', (string)($option['actor_roles'] ?? ''))));
+                  $optionRoleData = $optionRoles ? implode(',', $optionRoles) : '__system__';
+                  $optionRoleLabels = array_map('ucfirst', $optionRoles);
+                ?>
+                <option value="<?=e($optionValue)?>" data-roles="<?=e($optionRoleData)?>" <?=$actorFilter === $optionValue ? 'selected' : ''?>><?=e((string)$option['actor_name'])?><?=$optionRoleLabels ? ' · '.e(implode(', ', $optionRoleLabels)) : ''?></option>
               <?php endforeach; ?>
             </select>
           </label>
@@ -215,5 +244,34 @@ $actorOptions = db()->query(
     </section>
   </main>
 </div>
+<script>
+(function () {
+  const roleSelect = document.getElementById('audit-role-filter');
+  const actorSelect = document.getElementById('audit-actor-filter');
+  if (!roleSelect || !actorSelect) return;
+
+  const actorOptions = Array.from(actorSelect.options).filter(function (option) {
+    return option.value !== '';
+  });
+
+  function filterActors() {
+    const selectedRole = roleSelect.value;
+    actorOptions.forEach(function (option) {
+      const optionRoles = String(option.dataset.roles || '').split(',').filter(Boolean);
+      const visible = selectedRole === '' || optionRoles.includes(selectedRole);
+      option.hidden = !visible;
+      option.disabled = !visible;
+    });
+
+    const selectedActor = actorSelect.options[actorSelect.selectedIndex];
+    if (selectedActor && selectedActor.value !== '' && (selectedActor.hidden || selectedActor.disabled)) {
+      actorSelect.value = '';
+    }
+  }
+
+  roleSelect.addEventListener('change', filterActors);
+  filterActors();
+})();
+</script>
 </body>
 </html>

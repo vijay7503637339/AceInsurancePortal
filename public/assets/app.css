@@ -1529,3 +1529,5 @@
 .searchable-state-option[aria-selected=true]{font-weight:800;background:#f4f8ff}
 .searchable-state-option small{color:#71839e;font-size:11px;font-weight:700;letter-spacing:.04em}
 .searchable-state-empty{margin:0;padding:12px;color:var(--muted);font-size:12px;font-weight:500}
+
+.audit-filter-hint{color:#71819a;font-size:11px;font-weight:500;line-height:1.4}
