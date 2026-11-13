@@ -77,7 +77,7 @@ final class Crud {
      $existingLicenseState=$id!==null?self::find($key,$id):null;
      $previousLicenseState=trim((string)($existingLicenseState['license_state']??''));
      if($previousLicenseState===''||$previousLicenseState!==$licenseState) {
-      throw new \\InvalidArgumentException('Select a valid U.S. license state from the list.');
+      throw new \InvalidArgumentException('Select a valid U.S. license state from the list.');
      }
     }
    }
