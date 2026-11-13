@@ -136,7 +136,7 @@ if ($totalPages <= 7) {
   <aside class="sidebar">
     <a href="<?=e(appUrl('/agency/index.php'))?>">Dashboard</a>
     <a href="<?=e(appUrl('/agency/finance.php'))?>">Finance Billing Manage</a>
-    <a href="<?=e(appUrl('/agency/claims.php'))?>">Claims Management</a>
+    <a href="<?=e(appUrl('/agency/claims.php'))?>">Claims Management</a><a href="<?=e(appUrl('/agency/endorsements.php'))?>">Endorsements</a>
     <a href="<?=e(appUrl('/agency/crud.php?entity=insureds'))?>">Insureds</a>
     <a href="<?=e(appUrl('/agency/crud.php?entity=vehicles'))?>">Vehicles</a>
     <a href="<?=e(appUrl('/agency/crud.php?entity=policies'))?>">Policies</a>

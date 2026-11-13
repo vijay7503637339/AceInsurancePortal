@@ -66,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <aside class="sidebar">
     <a href="<?=e(appUrl('/agency/index.php'))?>">Dashboard</a>
     <a href="<?=e(appUrl('/agency/finance.php'))?>">Finance Billing Manage</a>
-    <a href="<?=e(appUrl('/agency/claims.php'))?>">Claims Management</a>
+    <a href="<?=e(appUrl('/agency/claims.php'))?>">Claims Management</a><a href="<?=e(appUrl('/agency/endorsements.php'))?>">Endorsements</a>
     <?php foreach (['insureds'=>'Insured Customers','vehicles'=>'Vehicles','policies'=>'Policies','drivers'=>'Drivers'] as $key=>$label): ?>
       <a href="<?=e(appUrl('/agency/crud.php?entity='.$key))?>"><?=e($label)?></a>
     <?php endforeach; ?>
