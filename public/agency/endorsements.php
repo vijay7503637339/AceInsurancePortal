@@ -125,6 +125,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'created_by' => (int)$u['id']
                     ]);
                     $subjectId = (int)$pdo->lastInsertId();
+                    $activeDrivers = $pdo->prepare("SELECT id FROM drivers WHERE insured_id = :insured_id AND status = 'active'");
+                    $activeDrivers->execute(['insured_id' => $insuredId]);
+                    $linkDriver = $pdo->prepare('INSERT IGNORE INTO policy_drivers (policy_id, driver_id) VALUES (:policy_id, :driver_id)');
+                    foreach ($activeDrivers->fetchAll(PDO::FETCH_COLUMN) as $activeDriverId) {
+                        $linkDriver->execute(['policy_id' => (int)$policyId, 'driver_id' => (int)$activeDriverId]);
+                    }
                     $q = $pdo->prepare('SELECT * FROM drivers WHERE id = :id');
                     $q->execute(['id' => $subjectId]);
                     $after = $q->fetch();
@@ -172,6 +178,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'created_by' => (int)$u['id']
                     ]);
                     $subjectId = (int)$pdo->lastInsertId();
+                    $activeVehicles = $pdo->prepare("SELECT id FROM vehicles WHERE insured_id = :insured_id AND status = 'active'");
+                    $activeVehicles->execute(['insured_id' => $insuredId]);
+                    $linkVehicle = $pdo->prepare('INSERT IGNORE INTO policy_vehicles (policy_id, vehicle_id) VALUES (:policy_id, :vehicle_id)');
+                    foreach ($activeVehicles->fetchAll(PDO::FETCH_COLUMN) as $activeVehicleId) {
+                        $linkVehicle->execute(['policy_id' => (int)$policyId, 'vehicle_id' => (int)$activeVehicleId]);
+                    }
                     $q = $pdo->prepare('SELECT * FROM vehicles WHERE id = :id');
                     $q->execute(['id' => $subjectId]);
                     $after = $q->fetch();
@@ -209,6 +221,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $decoded = json_decode((string)$policy['coverage_data'], true);
                     if (is_array($decoded)) $coverageData = $decoded;
                 }
+                $coverageDataBefore = $coverageData;
 
                 if ($actionType === 'amount_update') {
                     $amountLabels = [
@@ -235,9 +248,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $exists = in_array($coverageKey,$types,true);
                     if ($actionType === 'coverage_add' && $exists) throw new InvalidArgumentException('This coverage is already included in the policy.');
                     if ($actionType === 'coverage_remove' && !$exists) throw new InvalidArgumentException('This coverage is not currently selected on the policy.');
-                    $before = ['insurance_types'=>$types,'coverage'=>$coverageData[$coverageKey] ?? null,'insurance_carrier'=>$coverageData['insurance_carriers'][$coverageKey] ?? null];
+                    $before = ['insurance_types'=>$types,'coverage'=>$coverageData[$coverageKey] ?? null,'insurance_carrier'=>$coverageData['insurance_carriers'][$coverageKey] ?? null,'coverage_data_snapshot'=>$coverageDataBefore];
                     if ($actionType === 'coverage_add') {
                         $types[] = $coverageKey;
+                        if (!is_array($coverageData['insurance_carriers'] ?? null)) $coverageData['insurance_carriers'] = [];
                         $coverageData['insurance_carriers'][$coverageKey] = 'A';
                     } else {
                         $types = array_values(array_diff($types,[$coverageKey]));
@@ -249,7 +263,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $coverageData['types_of_insurance_summary'] = implode(', ',array_map(static fn($t) => $coverageTypes[$t] ?? $t,$types));
                     $pdo->prepare('UPDATE policies SET coverage_data = :data WHERE id = :id AND insured_id = :insured_id')
                         ->execute(['data'=>json_encode($coverageData,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR),'id'=>(int)$policyId,'insured_id'=>$insuredId]);
-                    $after = ['insurance_types'=>$types,'coverage'=>$coverageData[$coverageKey] ?? null,'insurance_carrier'=>$coverageData['insurance_carriers'][$coverageKey] ?? null];
+                    $after = ['insurance_types'=>$types,'coverage'=>$coverageData[$coverageKey] ?? null,'insurance_carrier'=>$coverageData['insurance_carriers'][$coverageKey] ?? null,'coverage_data_snapshot'=>$coverageData];
                     $summary = ($actionType === 'coverage_add' ? 'Added ' : 'Removed ').$coverageTypes[$coverageKey].' coverage on policy '.$policy['policy_number'].'.';
                     $subjectType = 'policy';
                     $subjectId = (int)$policyId;
@@ -277,19 +291,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if (!isset($fieldLabels[$coverageKey][$field])) throw new InvalidArgumentException('This amount field is not available for the selected coverage.');
                     $newValue = endorsementAmount($_POST['coverage_new_amount'] ?? '',$fieldLabels[$coverageKey][$field]);
                     if ($coverageKey === 'commercial_general_liability') {
+                        if (!is_array($coverageData[$coverageKey] ?? null)) $coverageData[$coverageKey] = [];
+                        if (!is_array($coverageData[$coverageKey]['limits'] ?? null)) $coverageData[$coverageKey]['limits'] = [];
                         $oldValue = $coverageData[$coverageKey]['limits'][$field] ?? null;
                         $coverageData[$coverageKey]['limits'][$field] = $newValue;
                     } elseif ($field === 'combined_single_limit' || $field === 'deductible_retention_amount') {
                         $oldValue = $coverageData[$field] ?? null;
                         $coverageData[$field] = $newValue;
                     } else {
+                        if (!is_array($coverageData[$coverageKey] ?? null)) $coverageData[$coverageKey] = [];
                         $oldValue = $coverageData[$coverageKey]['amount'] ?? null;
                         $coverageData[$coverageKey]['amount'] = $newValue;
                     }
                     $pdo->prepare('UPDATE policies SET coverage_data = :data WHERE id = :id AND insured_id = :insured_id')
                         ->execute(['data'=>json_encode($coverageData,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR),'id'=>(int)$policyId,'insured_id'=>$insuredId]);
-                    $before = ['coverage'=>$coverageTypes[$coverageKey],'field'=>$field,'label'=>$fieldLabels[$coverageKey][$field],'value'=>$oldValue];
-                    $after = ['coverage'=>$coverageTypes[$coverageKey],'field'=>$field,'label'=>$fieldLabels[$coverageKey][$field],'value'=>$newValue];
+                    $before = ['coverage'=>$coverageTypes[$coverageKey],'field'=>$field,'label'=>$fieldLabels[$coverageKey][$field],'value'=>$oldValue,'coverage_data_snapshot'=>$coverageDataBefore];
+                    $after = ['coverage'=>$coverageTypes[$coverageKey],'field'=>$field,'label'=>$fieldLabels[$coverageKey][$field],'value'=>$newValue,'coverage_data_snapshot'=>$coverageData];
                     $summary = 'Updated '.$coverageTypes[$coverageKey].' / '.$fieldLabels[$coverageKey][$field].' on policy '.$policy['policy_number'].' from '.(string)($oldValue ?? 'not set').' to '.$newValue.'.';
                     $subjectType = 'policy';
                     $subjectId = (int)$policyId;
