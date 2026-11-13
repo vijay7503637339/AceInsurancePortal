@@ -61,3 +61,12 @@ PHP 8.1+ and MySQL foundation for an insurance portal with separate Customer Log
 - Dropdown choices are sourced from the uploaded workbook's `02 CLAIM MASTER` sheet.
 - Existing database: run `database/migrations/004_claim_master_fields.sql` once in phpMyAdmin. Fresh installs receive the expanded claims table through `database/schema.sql`.
 - Loss Date maps to existing `incident_date`; Reported Date maps to `claim_date`; Coverage mirrors to legacy `claim_type`; Accident/Loss Summary mirrors to legacy `description`.
+
+
+## Endorsement Management
+- Admin and staff can process mid-term changes for an insured customer and one of that customer's policies.
+- Supports adding/removing drivers, adding/removing vehicles, updating vehicle value, updating policy premium/fee/tax/total, adding/removing coverage and updating supported coverage limits/amounts.
+- Removed drivers and vehicles are marked inactive instead of physically deleted so old policy and finance references remain intact.
+- Each endorsement stores before/after data, customer/policy, actor and email-delivery status in the endorsements table. An event is also written to the standard Activity Logs.
+- A notification email is attempted using the insured record email, with the customer portal email as a fallback. Status is saved as sent, failed or no_email. Configure config/mail.php and verify outbound mail/SMTP before production.
+- Existing database: run database/migrations/009_endorsements.sql once in phpMyAdmin after pulling. Fresh installs receive the table from database/schema.sql.

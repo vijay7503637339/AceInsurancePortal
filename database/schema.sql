@@ -10,6 +10,31 @@ CREATE TABLE transactions (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, insure
 CREATE TABLE claims (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, insured_id BIGINT UNSIGNED NOT NULL, policy_id BIGINT UNSIGNED NULL, claim_number VARCHAR(100) NULL, claim_date DATE NULL, incident_date DATE NULL, claim_type VARCHAR(100) NULL, coverage VARCHAR(80) NULL, claim_side VARCHAR(40) NULL, insurance_carrier VARCHAR(180) NULL, adjuster_name VARCHAR(180) NULL, adjuster_contact VARCHAR(180) NULL, adjusters JSON NULL, status VARCHAR(50) DEFAULT 'New', loss_amount DECIMAL(13,2) NULL, description TEXT NULL, accident_loss_summary TEXT NULL, latest_update_brief TEXT NULL, next_action TEXT NULL, follow_up_date DATE NULL, extra_data JSON NULL, created_by BIGINT UNSIGNED NULL, assigned_team_member_id BIGINT UNSIGNED NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, INDEX idx_claims_follow_up_date (follow_up_date), INDEX idx_claims_coverage (coverage), INDEX idx_claims_claim_side (claim_side), FOREIGN KEY(insured_id) REFERENCES insureds(id) ON DELETE RESTRICT, FOREIGN KEY(policy_id) REFERENCES policies(id) ON DELETE SET NULL, FOREIGN KEY(assigned_team_member_id) REFERENCES users(id) ON DELETE SET NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 CREATE TABLE claim_change_logs (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, claim_id BIGINT UNSIGNED NOT NULL, claim_number VARCHAR(100) NOT NULL, actor_user_id BIGINT UNSIGNED NULL, actor_name VARCHAR(160) NOT NULL, actor_role VARCHAR(30) NOT NULL, event_type VARCHAR(30) NOT NULL DEFAULT 'updated', changes_json JSON NOT NULL, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, INDEX idx_claim_change_logs_claim_time (claim_id, created_at, id), INDEX idx_claim_change_logs_actor (actor_user_id, created_at)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 CREATE TABLE audit_logs (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, actor_user_id BIGINT UNSIGNED NULL, actor_role VARCHAR(30) NULL, action VARCHAR(80) NOT NULL, entity_type VARCHAR(80) NOT NULL, entity_id BIGINT UNSIGNED NULL, summary VARCHAR(500) NOT NULL, ip_address VARCHAR(45) NULL, user_agent VARCHAR(500) NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(actor_user_id) REFERENCES users(id) ON DELETE SET NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS endorsements (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ endorsement_number VARCHAR(40) NOT NULL UNIQUE,
+ insured_id BIGINT UNSIGNED NOT NULL,
+ policy_id BIGINT UNSIGNED NULL,
+ category VARCHAR(30) NOT NULL,
+ action_type VARCHAR(60) NOT NULL,
+ subject_type VARCHAR(30) NOT NULL,
+ subject_record_id BIGINT UNSIGNED NULL,
+ summary VARCHAR(500) NOT NULL,
+ changes_json JSON NOT NULL,
+ actor_user_id BIGINT UNSIGNED NULL,
+ actor_role VARCHAR(30) NULL,
+ email_to VARCHAR(254) NULL,
+ email_status VARCHAR(30) NOT NULL DEFAULT 'pending',
+ email_error VARCHAR(500) NULL,
+ email_sent_at DATETIME NULL,
+ created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ INDEX idx_endorsements_insured_created (insured_id, created_at, id),
+ INDEX idx_endorsements_policy_created (policy_id, created_at, id),
+ INDEX idx_endorsements_actor_created (actor_user_id, created_at, id),
+ CONSTRAINT fk_endorsements_insured FOREIGN KEY (insured_id) REFERENCES insureds(id) ON DELETE RESTRICT,
+ CONSTRAINT fk_endorsements_policy FOREIGN KEY (policy_id) REFERENCES policies(id) ON DELETE SET NULL,
+ CONSTRAINT fk_endorsements_actor FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 CREATE TABLE signup_verifications (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, insured_id BIGINT UNSIGNED NOT NULL, email VARCHAR(254) NOT NULL, code_hash VARCHAR(255) NOT NULL, expires_at DATETIME NOT NULL, attempts TINYINT UNSIGNED DEFAULT 0, verified_at DATETIME NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(insured_id) REFERENCES insureds(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 CREATE TABLE password_resets (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, user_id BIGINT UNSIGNED NOT NULL, token_hash VARCHAR(255) NOT NULL, expires_at DATETIME NOT NULL, used_at DATETIME NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 -- OTP-based customer password recovery.

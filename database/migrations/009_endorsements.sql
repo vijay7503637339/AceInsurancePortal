@@ -1,0 +1,26 @@
+-- Run once in phpMyAdmin after pulling the Endorsement Management module.
+CREATE TABLE IF NOT EXISTS endorsements (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ endorsement_number VARCHAR(40) NOT NULL UNIQUE,
+ insured_id BIGINT UNSIGNED NOT NULL,
+ policy_id BIGINT UNSIGNED NULL,
+ category VARCHAR(30) NOT NULL,
+ action_type VARCHAR(60) NOT NULL,
+ subject_type VARCHAR(30) NOT NULL,
+ subject_record_id BIGINT UNSIGNED NULL,
+ summary VARCHAR(500) NOT NULL,
+ changes_json JSON NOT NULL,
+ actor_user_id BIGINT UNSIGNED NULL,
+ actor_role VARCHAR(30) NULL,
+ email_to VARCHAR(254) NULL,
+ email_status VARCHAR(30) NOT NULL DEFAULT 'pending',
+ email_error VARCHAR(500) NULL,
+ email_sent_at DATETIME NULL,
+ created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ INDEX idx_endorsements_insured_created (insured_id, created_at, id),
+ INDEX idx_endorsements_policy_created (policy_id, created_at, id),
+ INDEX idx_endorsements_actor_created (actor_user_id, created_at, id),
+ CONSTRAINT fk_endorsements_insured FOREIGN KEY (insured_id) REFERENCES insureds(id) ON DELETE RESTRICT,
+ CONSTRAINT fk_endorsements_policy FOREIGN KEY (policy_id) REFERENCES policies(id) ON DELETE SET NULL,
+ CONSTRAINT fk_endorsements_actor FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
