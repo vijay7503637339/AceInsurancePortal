@@ -2,7 +2,12 @@
   'use strict';
   const selector = 'input[data-amount-format]';
 
-  function formatAmount(value) {
+  function includesInlineDollarPrefix(input) {
+    // ACORD coverage fields already show a separate $ prefix beside the input.
+    return !input.closest('.acord-money-input');
+  }
+
+  function formatAmount(value, includeDollar = true) {
     const cleaned = String(value == null ? '' : value).replace(/[^0-9.]/g, '');
     if (!cleaned) return '';
     const decimalIndex = cleaned.indexOf('.');
@@ -11,22 +16,25 @@
     const decimalPart = hasDecimal ? cleaned.slice(decimalIndex + 1).replace(/\./g, '').slice(0, 2) : '';
     integerPart = integerPart.replace(/^0+(?=\d)/, '');
     const groupedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-    if (!hasDecimal) return groupedInteger;
-    return (groupedInteger || '0') + '.' + decimalPart;
+    const formattedNumber = !hasDecimal
+      ? groupedInteger
+      : (groupedInteger || '0') + '.' + decimalPart;
+    return (includeDollar ? '$' : '') + formattedNumber;
   }
 
   function formatInput(input, preserveCaret) {
     const previousValue = input.value;
+    const includeDollar = includesInlineDollarPrefix(input);
     const start = preserveCaret ? input.selectionStart : null;
     const end = preserveCaret ? input.selectionEnd : null;
-    const nextValue = formatAmount(previousValue);
+    const nextValue = formatAmount(previousValue, includeDollar);
     if (nextValue === previousValue) return;
     input.value = nextValue;
     if (start !== null && end !== null && typeof input.setSelectionRange === 'function') {
       try {
         input.setSelectionRange(
-          formatAmount(previousValue.slice(0, start)).length,
-          formatAmount(previousValue.slice(0, end)).length
+          formatAmount(previousValue.slice(0, start), includeDollar).length,
+          formatAmount(previousValue.slice(0, end), includeDollar).length
         );
       } catch (error) {
         // Some browsers do not expose selection ranges for every input state.
