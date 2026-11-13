@@ -1483,3 +1483,35 @@
 .us-date-control>.us-date-trigger:disabled{opacity:.5;cursor:not-allowed}
 .us-date-control>.us-date-native{position:absolute!important;top:0;right:42px;width:1px!important;height:1px!important;min-height:1px!important;padding:0!important;margin:0!important;border:0!important;opacity:0!important;pointer-events:none!important;overflow:hidden!important;clip:rect(0,0,0,0)!important}
 .us-date-control>.us-date-display:disabled{background:#f1f6fc;cursor:not-allowed}
+
+/* Post-save next-step dialog for Policy, Vehicle and Driver workflows */
+.crud-workflow-backdrop{
+ position:fixed;inset:0;z-index:2000;display:flex;align-items:center;justify-content:center;
+ padding:22px;background:rgba(12,24,43,.58);backdrop-filter:blur(4px);
+}
+.crud-workflow-modal{
+ position:relative;width:min(480px,100%);padding:34px 30px 30px;text-align:center;
+ background:#fff;border:1px solid #dbe5f2;border-radius:16px;
+ box-shadow:0 24px 80px rgba(10,27,51,.28);outline:none;
+ animation:crudWorkflowEnter .18s ease-out;
+}
+.crud-workflow-close{
+ position:absolute;top:11px;right:13px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;
+ border:0;border-radius:8px;background:#f1f5fa;color:#536783;font-size:26px;line-height:1;cursor:pointer;
+}
+.crud-workflow-close:hover{background:#e7eef8;color:#1d2e4f}
+.crud-workflow-success-icon{
+ width:52px;height:52px;margin:0 auto 15px;display:flex;align-items:center;justify-content:center;
+ border-radius:50%;background:#e7f8ef;color:#17804f;font-size:28px;font-weight:800;
+}
+.crud-workflow-modal h2{margin:0 28px 8px;color:#1d2e4f;font-size:20px;line-height:1.35}
+.crud-workflow-modal p{margin:0 0 21px;color:#687a96;font-size:13px}
+.crud-workflow-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}
+.crud-workflow-action{width:100%;min-height:44px;padding:11px 10px}
+@keyframes crudWorkflowEnter{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(max-width:480px){
+ .crud-workflow-modal{padding:32px 19px 22px}
+ .crud-workflow-modal h2{font-size:18px}
+ .crud-workflow-actions{grid-template-columns:1fr}
+}
+@media(prefers-reduced-motion:reduce){.crud-workflow-modal{animation:none}}

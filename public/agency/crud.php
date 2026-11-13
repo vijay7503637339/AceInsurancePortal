@@ -18,6 +18,14 @@ if($action==='edit'&&$_SERVER['REQUEST_METHOD']!=='POST'){
  $editing=Crud::find($key,(int)$id);
  if(!$editing){http_response_code(404);exit('Record not found.');}
 }elseif(in_array($action,['add','edit'],true)&&$_SERVER['REQUEST_METHOD']==='POST'){$editing=$_POST;}
+if($action==='add'&&$_SERVER['REQUEST_METHOD']!=='POST'){
+ $prefillInsuredId=filter_var($_GET['insured_id']??null,FILTER_VALIDATE_INT);
+ if($prefillInsuredId&&$prefillInsuredId>0){
+  $prefillQuery=db()->prepare('SELECT id FROM insureds WHERE id=:id');
+  $prefillQuery->execute(['id'=>(int)$prefillInsuredId]);
+  if($prefillQuery->fetch())$editing['insured_id']=(string)(int)$prefillInsuredId;
+ }
+}
 if($_SERVER['REQUEST_METHOD']==='POST'){
  verifyCsrf();$postAction=(string)($_POST['action']??'save');
  try{
@@ -30,7 +38,19 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
   $saveRaw=trim((string)($_POST['id']??''));$saveId=$saveRaw!==''?filter_var($saveRaw,FILTER_VALIDATE_INT):null;
   if($saveRaw!==''&&(!$saveId||$saveId<1))throw new \InvalidArgumentException('Invalid record ID.');
   if($action==='edit'&&!$saveId)throw new \InvalidArgumentException('Record ID is missing. Return to the list and reopen this record.');
-  Crud::save($key,$_POST,$saveId?(int)$saveId:null,(int)$u['id']);
+  if(in_array($key,['policies','vehicles','drivers'],true)){
+   $workflowInsuredId=filter_var($_POST['insured_id']??null,FILTER_VALIDATE_INT);
+   if(!$workflowInsuredId||$workflowInsuredId<1)throw new \\InvalidArgumentException('Select an insured customer.');
+  }
+  $savedRecordId=Crud::save($key,$_POST,$saveId?(int)$saveId:null,(int)$u['id']);
+  if(in_array($key,['policies','vehicles','drivers'],true)){
+   $_SESSION['_crud_workflow_success']=[
+    'entity'=>$key,
+    'insured_id'=>(int)$workflowInsuredId,
+    'record_id'=>$savedRecordId
+   ];
+   redirect('/agency/crud.php?entity='.urlencode($key));
+  }
   flash('success',$action==='edit'?'Record updated.':'Record added.');redirect('/agency/crud.php?entity='.urlencode($key));
  }catch(\Throwable $x){
   error_log('Agency CRUD save failed for '.$key.': '.$x->getMessage());
@@ -42,6 +62,23 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
  }
 }
 $flash=getFlash();
+$workflowSuccess=$_SESSION['_crud_workflow_success']??null;
+unset($_SESSION['_crud_workflow_success']);
+if(!is_array($workflowSuccess)
+ ||!in_array((string)($workflowSuccess['entity']??''),['policies','vehicles','drivers'],true)
+ ||(int)($workflowSuccess['insured_id']??0)<1){
+ $workflowSuccess=null;
+}
+$workflowActions=[];
+if($workflowSuccess){
+ $workflowActions=match((string)$workflowSuccess['entity']){
+  'policies'=>['vehicles'=>'Add Vehicle','drivers'=>'Add Driver'],
+  'drivers'=>['policies'=>'Add Policy','vehicles'=>'Add Vehicle'],
+  'vehicles'=>['drivers'=>'Add Driver','policies'=>'Add Policy'],
+  default=>[]
+ };
+}
+$workflowInsuredId=(int)($workflowSuccess['insured_id']??0);
 $allRows=Crud::rows($key);
 $customers=db()->query('SELECT id,legal_name,dot_number FROM insureds ORDER BY legal_name')->fetchAll();
 $customerMap=[];foreach($customers as $c)$customerMap[(int)$c['id']]=$c;
@@ -106,7 +143,38 @@ $rows=array_values(array_filter($allRows,static function(array $r)use($search,$s
 }));
 $listUrl='/agency/crud.php?entity='.urlencode($key);
 $formUrl=$listUrl.'&action='.$action.($id!==null?'&id='.(int)$id:'');
-?><!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?=e($entity['label'])?></title><link rel="stylesheet" href="<?=e(appUrl('/assets/app.css'))?>"><script src="<?=e(appUrl('/assets/amount-format.js'))?>" defer></script><script src="<?=e(appUrl('/assets/us-date-format.js'))?>" defer></script></head><body><header class="topbar"><div><strong>ACE Insurance</strong><span>Agency Portal</span></div><div><?=e($u['full_name'])?> · <?=e($u['role'])?> <a class="btn light small-btn" href="<?=e(appUrl('/agency/change-password.php'))?>">Change Password</a><a class="btn light small-btn" href="<?=e(appUrl('/logout.php'))?>">Logout</a></div></header><div class="layout"><aside class="sidebar"><a href="<?=e(appUrl('/agency/index.php'))?>">Dashboard</a><a href="<?=e(appUrl('/agency/finance.php'))?>">Finance Billing Manage</a><a href="<?=e(appUrl('/agency/claims.php'))?>">Claims Management</a><?php foreach(Crud::ENTITIES as $k=>$v):?><a class="<?=$k===$key?'selected':''?>" href="<?=e(appUrl('/agency/crud.php?entity='.$k))?>"><?=e($v['label'])?></a><?php endforeach;?><?php if($u['role']==='admin'):?><a href="<?=e(appUrl('/agency/own-company.php'))?>">Own Company</a><a href="<?=e(appUrl('/agency/staff.php'))?>">Staff Accounts</a><a href="<?=e(appUrl('/agency/audit-logs.php'))?>">Activity Logs</a><?php endif;?></aside><main class="main"><?php if($action==='list'):?>
+?><!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?=e($entity['label'])?></title><link rel="stylesheet" href="<?=e(appUrl('/assets/app.css'))?>"><script src="<?=e(appUrl('/assets/amount-format.js'))?>" defer></script><script src="<?=e(appUrl('/assets/us-date-format.js'))?>" defer></script></head><body><header class="topbar"><div><strong>ACE Insurance</strong><span>Agency Portal</span></div><div><?=e($u['full_name'])?> · <?=e($u['role'])?> <a class="btn light small-btn" href="<?=e(appUrl('/agency/change-password.php'))?>">Change Password</a><a class="btn light small-btn" href="<?=e(appUrl('/logout.php'))?>">Logout</a></div></header><div class="layout"><aside class="sidebar"><a href="<?=e(appUrl('/agency/index.php'))?>">Dashboard</a><a href="<?=e(appUrl('/agency/finance.php'))?>">Finance Billing Manage</a><a href="<?=e(appUrl('/agency/claims.php'))?>">Claims Management</a><?php foreach(Crud::ENTITIES as $k=>$v):?><a class="<?=$k===$key?'selected':''?>" href="<?=e(appUrl('/agency/crud.php?entity='.$k))?>"><?=e($v['label'])?></a><?php endforeach;?><?php if($u['role']==='admin'):?><a href="<?=e(appUrl('/agency/own-company.php'))?>">Own Company</a><a href="<?=e(appUrl('/agency/staff.php'))?>">Staff Accounts</a><a href="<?=e(appUrl('/agency/audit-logs.php'))?>">Activity Logs</a><?php endif;?></aside><main class="main">
+<?php if($workflowSuccess&&$action==='list'&&$workflowActions):?>
+<div class="crud-workflow-backdrop" id="crud-workflow-modal" role="presentation">
+ <section class="crud-workflow-modal" role="dialog" aria-modal="true" aria-labelledby="crud-workflow-title" tabindex="-1">
+  <button class="crud-workflow-close" type="button" data-workflow-close aria-label="Close popup" title="Close">×</button>
+  <div class="crud-workflow-success-icon" aria-hidden="true">✓</div>
+  <h2 id="crud-workflow-title">Record has been saved successfully</h2>
+  <p>What would you like to add next?</p>
+  <div class="crud-workflow-actions">
+   <?php foreach($workflowActions as $targetEntity=>$targetLabel):
+    $targetUrl='/agency/crud.php?entity='.$targetEntity.'&action=add&insured_id='.$workflowInsuredId;
+   ?>
+    <a class="btn primary crud-workflow-action" href="<?=e(appUrl($targetUrl))?>"><?=e($targetLabel)?></a>
+   <?php endforeach;?>
+  </div>
+ </section>
+</div>
+<script>
+(function(){
+ const modal=document.getElementById('crud-workflow-modal');
+ if(!modal)return;
+ const closeButton=modal.querySelector('[data-workflow-close]');
+ function closeModal(){modal.remove();}
+ if(closeButton)closeButton.addEventListener('click',closeModal);
+ modal.addEventListener('click',function(event){if(event.target===modal)closeModal();});
+ document.addEventListener('keydown',function(event){if(event.key==='Escape')closeModal();});
+ const dialog=modal.querySelector('[role="dialog"]');
+ if(dialog)dialog.focus();
+})();
+</script>
+<?php endif;?>
+<?php if($action==='list'):?>
 <div class="page-title"><div><h1><?=e($entity['label'])?></h1><p class="muted">Browse, search and manage existing records.</p></div><a class="btn primary" href="<?=e(appUrl($listUrl.'&action=add'))?>">+ Add <?=e($entity['label'])?></a></div>
 <?php else:?>
 <div class="page-title"><div><h1><?=$action==='edit'?'Edit Record #'.$id:'Add New Record'?></h1><p class="muted"><?=$action==='edit'?'Update the selected record and save your changes.':'Enter the details below to create a new record.'?></p></div><a class="btn light" href="<?=e(appUrl($listUrl))?>">← Back to List</a></div>
