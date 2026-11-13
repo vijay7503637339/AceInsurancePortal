@@ -1531,3 +1531,63 @@
 .searchable-state-empty{margin:0;padding:12px;color:var(--muted);font-size:12px;font-weight:500}
 
 .audit-filter-hint{color:#71819a;font-size:11px;font-weight:500;line-height:1.4}
+
+
+/* Endorsement Management */
+.endorsement-main{min-width:0;max-width:1720px}
+.endorsement-hero{display:flex;align-items:center;justify-content:space-between;gap:22px;padding:28px 30px;margin-bottom:20px;border:1px solid #d9e5f4;border-radius:16px;background:linear-gradient(120deg,#fff 0%,#f7faff 70%,#edf4ff 100%);box-shadow:0 5px 22px rgba(29,46,79,.045)}
+.endorsement-eyebrow{display:block;margin-bottom:8px;color:#6280a5;font-size:10px;font-weight:850;letter-spacing:.15em}
+.endorsement-hero h1{margin:0 0 7px;color:#1d2e4f;font-size:26px;font-weight:850;letter-spacing:-.5px}
+.endorsement-hero p{margin:0;color:#6b7e99;font-size:13px;line-height:1.55}
+.endorsement-hero-stat{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:112px;padding:15px;border:1px solid #dbe7f6;border-radius:12px;background:#fff}
+.endorsement-hero-stat strong{color:#1d2e4f;font-size:27px;font-weight:900}
+.endorsement-hero-stat span{color:#71839e;font-size:10px;font-weight:750;text-align:center}
+.endorsement-customer-panel,.endorsement-policy-panel,.endorsement-type-panel,.endorsement-detail-panel,.endorsement-review-panel,.endorsement-history-panel{padding:22px;margin-bottom:18px}
+.endorsement-section-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:18px}
+.endorsement-section-heading h2{margin:3px 0 5px;color:#203653;font-size:18px;font-weight:850;letter-spacing:-.25px}
+.endorsement-section-heading p{margin:0;color:#71819a;font-size:12px;line-height:1.5}
+.endorsement-step{display:inline-flex;align-items:center;color:#6a84a8;font-size:9px;font-weight:900;letter-spacing:.14em}
+.endorsement-customer-form{display:flex;align-items:flex-end;gap:12px}
+.endorsement-customer-form label,.endorsement-policy-panel>label{display:flex;flex:1;flex-direction:column;gap:7px;color:#344761;font-size:12px;font-weight:750}
+.endorsement-customer-form select,.endorsement-policy-panel select,.endorsement-action-label select,.endorsement-fields input,.endorsement-fields select{width:100%;min-width:0;min-height:43px;padding:10px 12px;border:1px solid #ccd9e9;border-radius:8px;background:#fff;color:#203653;font:inherit;font-size:13px;outline:none}
+.endorsement-customer-form select:focus,.endorsement-policy-panel select:focus,.endorsement-action-label select:focus,.endorsement-fields input:focus,.endorsement-fields select:focus{border-color:#7592ba;box-shadow:0 0 0 3px rgba(29,46,79,.1)}
+.endorsement-customer-form .btn{min-height:43px;white-space:nowrap}
+.endorsement-customer-summary{display:grid;grid-template-columns:1.2fr 1.2fr .8fr;gap:12px;margin-top:18px;padding-top:17px;border-top:1px solid #edf1f7}
+.endorsement-customer-summary>div{display:flex;min-width:0;flex-direction:column;gap:4px}
+.endorsement-customer-summary span,.endorsement-review-grid span{color:#7b8ba3;font-size:10px;font-weight:700}
+.endorsement-customer-summary strong{color:#263d5c;font-size:13px;overflow-wrap:anywhere}
+.endorsement-customer-summary small{color:#8291a6;font-size:10px}
+.endorsement-type-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:18px}
+.endorsement-type-card{position:relative;display:flex;min-width:0;min-height:138px;flex-direction:column;align-items:flex-start;gap:7px;padding:17px;border:1px solid #dce5f1;border-radius:12px;background:#fff;cursor:pointer;transition:border-color .15s,background .15s,box-shadow .15s}
+.endorsement-type-card input{position:absolute;top:13px;right:13px;width:17px;height:17px;accent-color:#1d2e4f}
+.endorsement-type-card.is-selected{border-color:#829dc4;background:#f5f8fd;box-shadow:inset 0 0 0 1px #b9c9df}
+.endorsement-type-icon{display:flex;width:34px;height:34px;align-items:center;justify-content:center;border-radius:9px;background:#edf3fc;color:#25466e;font-size:18px;font-weight:800}
+.endorsement-type-card strong{color:#263c5b;font-size:14px}
+.endorsement-type-card small{max-width:95%;color:#7a8ba3;font-size:11px;line-height:1.45}
+.endorsement-action-label{display:flex;max-width:460px;flex-direction:column;gap:7px;color:#344761;font-size:12px;font-weight:750}
+.endorsement-detail-panel[hidden],.endorsement-review-panel[hidden],.endorsement-fields[hidden]{display:none!important}
+.endorsement-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}
+.endorsement-fields h3{grid-column:1/-1;margin:0;padding-bottom:10px;border-bottom:1px solid #edf1f7;color:#263d5c;font-size:15px}
+.endorsement-fields label{display:flex;min-width:0;flex-direction:column;gap:7px;color:#354963;font-size:12px;font-weight:750}
+.endorsement-fields .endorsement-help{grid-column:1/-1;margin:0;padding:12px 14px;border:1px solid #e1eaf5;border-radius:8px;background:#f7faff;color:#70829b;font-size:11px;line-height:1.55}
+.endorsement-review-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.endorsement-review-grid>div{display:flex;min-width:0;flex-direction:column;gap:5px;padding:13px;border:1px solid #e4ebf4;border-radius:9px;background:#fafcff}
+.endorsement-review-grid strong{color:#253b5a;font-size:12px;overflow-wrap:anywhere}
+.endorsement-email-note{margin-top:15px;padding:12px 14px;border:1px solid #dce8f7;border-radius:8px;background:#f4f8fe;color:#617690;font-size:11px;line-height:1.5}
+.endorsement-form-actions{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:17px}
+.endorsement-history-heading{align-items:center}
+.endorsement-history-count{flex:0 0 auto;padding:7px 10px;border:1px solid #dde7f3;border-radius:20px;background:#f4f8fd;color:#435d7e;font-size:11px;font-weight:800}
+.endorsement-table{min-width:1120px}
+.endorsement-table td{vertical-align:middle;white-space:normal}
+.endorsement-table-sub{display:block;margin-top:4px;color:#8190a5;font-size:10px;line-height:1.4}
+.endorsement-category-pill{display:inline-flex;padding:4px 8px;border-radius:6px;background:#edf3fc;color:#365779;font-size:10px;font-weight:850}
+.endorsement-email-status{display:inline-flex;padding:4px 7px;border-radius:6px;background:#f0f3f8;color:#596a81;font-size:10px;font-weight:850;text-transform:capitalize}
+.endorsement-email-status.is-sent{background:#e9f8ef;color:#1a744a}
+.endorsement-email-status.is-failed,.endorsement-email-status.is-no_email{background:#fff2ed;color:#a64a32}
+.endorsement-details{min-width:62px}
+.endorsement-details summary{color:#2d527e;font-size:11px;font-weight:800;cursor:pointer}
+.endorsement-details pre{position:relative;z-index:2;min-width:280px;max-width:440px;max-height:260px;overflow:auto;padding:12px;border:1px solid #dbe5f2;border-radius:8px;background:#f7faff;color:#40536f;font-size:10px;white-space:pre-wrap;overflow-wrap:anywhere}
+.endorsement-email-error{max-width:280px;color:#a64a32;font-size:10px;white-space:normal}
+.endorsement-empty{text-align:center;padding:30px!important}
+@media(max-width:1000px){.endorsement-review-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.endorsement-customer-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:680px){.endorsement-hero{align-items:flex-start;flex-direction:column;padding:22px}.endorsement-hero-stat{align-items:flex-start;width:100%}.endorsement-customer-form{align-items:stretch;flex-direction:column}.endorsement-customer-form .btn{width:100%}.endorsement-customer-summary,.endorsement-type-grid,.endorsement-fields,.endorsement-review-grid{grid-template-columns:1fr}.endorsement-customer-panel,.endorsement-policy-panel,.endorsement-type-panel,.endorsement-detail-panel,.endorsement-review-panel,.endorsement-history-panel{padding:16px}.endorsement-type-card{min-height:120px}.endorsement-form-actions{align-items:stretch;flex-direction:column-reverse}.endorsement-form-actions .btn{width:100%}}
