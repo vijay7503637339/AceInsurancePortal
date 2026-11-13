@@ -122,17 +122,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if (!in_array($excluded, ['0','1'], true)) throw new InvalidArgumentException('Select whether the driver is excluded.');
                     if ($state !== '' && !in_array($state, Crud::US_LICENSE_STATES, true)) throw new InvalidArgumentException('Select a valid U.S. license state.');
 
-                    $q = $pdo->prepare("INSERT INTO drivers (insured_id, full_name, license_number, license_state, date_of_birth, is_excluded, status, created_by) VALUES (:insured_id, :full_name, :license_number, :license_state, :date_of_birth, :is_excluded, 'active', :created_by)");
-                    $q->execute([
-                        'insured_id' => $insuredId,
-                        'full_name' => $name,
-                        'license_number' => $license !== '' ? $license : null,
-                        'license_state' => $state !== '' ? $state : null,
-                        'date_of_birth' => $dob,
-                        'is_excluded' => (int)$excluded,
-                        'created_by' => (int)$u['id']
-                    ]);
-                    $subjectId = (int)$pdo->lastInsertId();
+                    $existingDriver = null;
+                    if ($license !== '') {
+                        $existingQuery = $pdo->prepare('SELECT * FROM drivers WHERE insured_id = :insured_id AND license_number = :license_number ORDER BY id DESC LIMIT 1 FOR UPDATE');
+                        $existingQuery->execute(['insured_id' => $insuredId, 'license_number' => $license]);
+                        $existingDriver = $existingQuery->fetch() ?: null;
+                    }
+                    if ($existingDriver && (string)$existingDriver['status'] === 'active') {
+                        throw new InvalidArgumentException('This driver license is already active for this customer.');
+                    }
+                    if ($existingDriver) {
+                        $before = $existingDriver;
+                        $subjectId = (int)$existingDriver['id'];
+                        $q = $pdo->prepare("UPDATE drivers SET full_name = :full_name, license_number = :license_number, license_state = :license_state, date_of_birth = :date_of_birth, is_excluded = :is_excluded, status = 'active' WHERE id = :id AND insured_id = :insured_id");
+                        $q->execute([
+                            'full_name' => $name,
+                            'license_number' => $license,
+                            'license_state' => $state !== '' ? $state : null,
+                            'date_of_birth' => $dob,
+                            'is_excluded' => (int)$excluded,
+                            'id' => $subjectId,
+                            'insured_id' => $insuredId
+                        ]);
+                    } else {
+                        $q = $pdo->prepare("INSERT INTO drivers (insured_id, full_name, license_number, license_state, date_of_birth, is_excluded, status, created_by) VALUES (:insured_id, :full_name, :license_number, :license_state, :date_of_birth, :is_excluded, 'active', :created_by)");
+                        $q->execute([
+                            'insured_id' => $insuredId,
+                            'full_name' => $name,
+                            'license_number' => $license !== '' ? $license : null,
+                            'license_state' => $state !== '' ? $state : null,
+                            'date_of_birth' => $dob,
+                            'is_excluded' => (int)$excluded,
+                            'created_by' => (int)$u['id']
+                        ]);
+                        $subjectId = (int)$pdo->lastInsertId();
+                    }
                     $activeDrivers = $pdo->prepare("SELECT id FROM drivers WHERE insured_id = :insured_id AND status = 'active'");
                     $activeDrivers->execute(['insured_id' => $insuredId]);
                     $linkDriver = $pdo->prepare('INSERT IGNORE INTO policy_drivers (policy_id, driver_id) VALUES (:policy_id, :driver_id)');
@@ -142,8 +166,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $q = $pdo->prepare('SELECT * FROM drivers WHERE id = :id');
                     $q->execute(['id' => $subjectId]);
                     $after = $q->fetch();
-                    $summary = 'Added driver '.$name.' to the selected customer and policy.';
-                    $detail = ['driver' => $after];
+                    $summary = ($before ? 'Reactivated previously removed driver ' : 'Added driver ').$name.' for the selected customer and policy.';
+                    $detail = ['driver_before' => $before, 'driver_after' => $after, 'record_action' => $before ? 'reactivated' : 'added'];
                 } elseif ($actionType === 'remove') {
                     $subjectId = filter_var($_POST['driver_id'] ?? null, FILTER_VALIDATE_INT);
                     if (!$subjectId || $subjectId < 1) throw new InvalidArgumentException('Select a driver to remove.');
