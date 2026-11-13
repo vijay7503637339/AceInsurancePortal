@@ -15,7 +15,7 @@ final class Crud {
   $e=self::entity($key); $data=[];
   foreach($e['fields'] as $field=>$meta) {
    $v=$input[$field]??null; $v=is_string($v)?trim($v):$v; if($v==='')$v=null;
-   if($meta[1]==='decimal'&&$v!==null) { $rawAmount=(string)$v; if(!preg_match('/^\$?-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?$/',$rawAmount)) throw new \InvalidArgumentException($meta[0].' must be a valid amount.'); $v=str_replace([',','
+   if($meta[1]==='decimal'&&$v!==null) { $rawAmount=(string)$v; if(!preg_match('/^\$?-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?$/',$rawAmount)) throw new \InvalidArgumentException($meta[0].' must be a valid amount.'); $v=str_replace([',', '$'], '', $rawAmount); }
    if($meta[1]==='email'&&$v!==null&&!filter_var($v,FILTER_VALIDATE_EMAIL))throw new \InvalidArgumentException('Enter a valid email.');
    if(in_array($meta[1],['number','decimal'],true)&&$v!==null&&!is_numeric($v))throw new \InvalidArgumentException($meta[0].' must be numeric.');
    if(str_starts_with($meta[1],'select:')&&$v!==null&&!in_array((string)$v,explode(',',substr($meta[1],7)),true))throw new \InvalidArgumentException('Invalid '.$meta[0]);

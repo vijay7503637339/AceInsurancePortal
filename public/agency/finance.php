@@ -59,7 +59,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
   if($form['policy_id']!==''){$tmp=filter_var($form['policy_id'],FILTER_VALIDATE_INT);if(!$tmp||$tmp<1)throw new \RuntimeException('Select a valid policy.');$q=db()->prepare('SELECT id,insured_id FROM policies WHERE id=:id');$q->execute(['id'=>$tmp]);$p=$q->fetch();if(!$p||(int)$p['insured_id']!==(int)$insuredId)throw new \RuntimeException('The selected policy must belong to the selected insured customer.');$policyId=(int)$tmp;}
   if($form['autopay']!==''&&!in_array($form['autopay'],$autopayOptions,true))throw new \RuntimeException('Select a valid Autopay option.');
   if($form['payment_method']!==''&&!in_array($form['payment_method'],$paymentMethods,true))throw new \RuntimeException('Select a valid Payment Method.');
-  $amount=static function(string $v,string $label):?string{$v=trim($v);if($v==='')return null;$normalized=str_replace([',','
+  $amount=static function(string $v,string $label):?string{$v=trim($v);if($v==='')return null;$normalized=str_replace([',', '$', ' '], '', $v);if($normalized===''||!is_numeric($normalized)||(float)$normalized<0||!is_finite((float)$normalized))throw new \RuntimeException($label.' must be a non-negative amount.');return number_format((float)$normalized,2,'.','');};
   $dateInput=static function(string $v,string $label):?string{if($v==='')return null;$d=\DateTimeImmutable::createFromFormat('!Y-m-d',$v);if(!$d||$d->format('Y-m-d')!==$v)throw new \RuntimeException('Enter a valid '.$label.'.');return $v;};
 
   $cleanPlans=[];
