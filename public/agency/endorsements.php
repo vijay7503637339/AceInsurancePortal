@@ -255,6 +255,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $coverageData['insurance_carriers'][$coverageKey] = 'A';
                     } else {
                         $types = array_values(array_diff($types,[$coverageKey]));
+                        if (!is_array($coverageData['insurance_carriers'] ?? null)) $coverageData['insurance_carriers'] = [];
+                        if (!is_array($coverageData['coverage_options'] ?? null)) $coverageData['coverage_options'] = [];
                         unset($coverageData['insurance_carriers'][$coverageKey],$coverageData['coverage_options'][$coverageKey]);
                         if (in_array($coverageKey,['commercial_general_liability','physical_damage','motor_truck_cargo'],true)) unset($coverageData[$coverageKey]);
                         if ($coverageKey === 'automobile_liability') unset($coverageData['combined_single_limit']);
@@ -450,7 +452,7 @@ $selectedPolicyId = (int)($selectedPolicy['id'] ?? 0);
 
     <section class="panel endorsement-customer-panel">
       <div class="endorsement-section-heading"><div><span class="endorsement-step">STEP 1</span><h2>Select Customer</h2><p>Choose the insured customer requesting a mid-term change.</p></div></div>
-      <form method="get" class="endorsement-customer-form">
+      <form method="get" action="<?=e(appUrl('/agency/endorsements.php'))?>" class="endorsement-customer-form">
         <label>Customer
           <select name="insured_id" required>
             <option value="">Select a customer...</option>
