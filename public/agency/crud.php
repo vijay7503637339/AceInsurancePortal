@@ -106,13 +106,13 @@ $rows=array_values(array_filter($allRows,static function(array $r)use($search,$s
 }));
 $listUrl='/agency/crud.php?entity='.urlencode($key);
 $formUrl=$listUrl.'&action='.$action.($id!==null?'&id='.(int)$id:'');
-?><!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?=e($entity['label'])?></title><link rel="stylesheet" href="<?=e(appUrl('/assets/app.css'))?>"></head><body><header class="topbar"><div><strong>ACE Insurance</strong><span>Agency Portal</span></div><div><?=e($u['full_name'])?> · <?=e($u['role'])?> <a class="btn light small-btn" href="<?=e(appUrl('/agency/change-password.php'))?>">Change Password</a><a class="btn light small-btn" href="<?=e(appUrl('/logout.php'))?>">Logout</a></div></header><div class="layout"><aside class="sidebar"><a href="<?=e(appUrl('/agency/index.php'))?>">Dashboard</a><a href="<?=e(appUrl('/agency/finance.php'))?>">Finance Billing Manage</a><a href="<?=e(appUrl('/agency/claims.php'))?>">Claims Management</a><?php foreach(Crud::ENTITIES as $k=>$v):?><a class="<?=$k===$key?'selected':''?>" href="<?=e(appUrl('/agency/crud.php?entity='.$k))?>"><?=e($v['label'])?></a><?php endforeach;?><?php if($u['role']==='admin'):?><a href="<?=e(appUrl('/agency/own-company.php'))?>">Own Company</a><a href="<?=e(appUrl('/agency/staff.php'))?>">Staff Accounts</a><a href="<?=e(appUrl('/agency/audit-logs.php'))?>">Activity Logs</a><?php endif;?></aside><main class="main"><?php if($action==='list'):?>
+?><!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?=e($entity['label'])?></title><link rel="stylesheet" href="<?=e(appUrl('/assets/app.css'))?>"><script src="<?=e(appUrl('/assets/amount-format.js'))?>" defer></script></head><body><header class="topbar"><div><strong>ACE Insurance</strong><span>Agency Portal</span></div><div><?=e($u['full_name'])?> · <?=e($u['role'])?> <a class="btn light small-btn" href="<?=e(appUrl('/agency/change-password.php'))?>">Change Password</a><a class="btn light small-btn" href="<?=e(appUrl('/logout.php'))?>">Logout</a></div></header><div class="layout"><aside class="sidebar"><a href="<?=e(appUrl('/agency/index.php'))?>">Dashboard</a><a href="<?=e(appUrl('/agency/finance.php'))?>">Finance Billing Manage</a><a href="<?=e(appUrl('/agency/claims.php'))?>">Claims Management</a><?php foreach(Crud::ENTITIES as $k=>$v):?><a class="<?=$k===$key?'selected':''?>" href="<?=e(appUrl('/agency/crud.php?entity='.$k))?>"><?=e($v['label'])?></a><?php endforeach;?><?php if($u['role']==='admin'):?><a href="<?=e(appUrl('/agency/own-company.php'))?>">Own Company</a><a href="<?=e(appUrl('/agency/staff.php'))?>">Staff Accounts</a><a href="<?=e(appUrl('/agency/audit-logs.php'))?>">Activity Logs</a><?php endif;?></aside><main class="main"><?php if($action==='list'):?>
 <div class="page-title"><div><h1><?=e($entity['label'])?></h1><p class="muted">Browse, search and manage existing records.</p></div><a class="btn primary" href="<?=e(appUrl($listUrl.'&action=add'))?>">+ Add <?=e($entity['label'])?></a></div>
 <?php else:?>
 <div class="page-title"><div><h1><?=$action==='edit'?'Edit Record #'.$id:'Add New Record'?></h1><p class="muted"><?=$action==='edit'?'Update the selected record and save your changes.':'Enter the details below to create a new record.'?></p></div><a class="btn light" href="<?=e(appUrl($listUrl))?>">← Back to List</a></div>
 <?php endif;?>
 <?php if($flash):?><div class="alert success"><?=e($flash['message'])?></div><?php endif;?><?php if($error):?><div class="alert error"><?=e($error)?></div><?php endif;?>
-<?php if($action==='add'||$action==='edit'):?><div class="panel crud-form-panel"><h2><?=$action==='edit'?'Edit Record #'.$id:'Add New Record'?></h2><form method="post" action="<?=e(appUrl($formUrl))?>" class="form-grid crud-form"><input type="hidden" name="_csrf" value="<?=e(csrfToken())?>"><input type="hidden" name="entity" value="<?=e($key)?>"><input type="hidden" name="id" value="<?=e((string)($id??''))?>"><?php foreach($entity['fields'] as $f=>$m):if($key==='policies'&&(preg_match('/^insurer_[a-f]_(name|naic)$/',$f)||in_array($f,['policy_number','effective_date','expiration_date'],true)))continue;$v=$editing[$f]??'';?><label><?=e($m[0])?><?=$m[2]?' *':''?><?php if($m[1]==='insured_select'):?><select name="<?=e($f)?>" <?=$m[2]?'required':''?><?=in_array($key,['vehicles','drivers'],true)&&$f==='insured_id'?' id="insured-customer-select"':''?>><option value="">Select insured customer</option><?php foreach($customers as $c):?><option value="<?=$c['id']?>" <?=(string)$v===(string)$c['id']?'selected':''?>><?=e($c['legal_name'].' (DOT '.$c['dot_number'].')')?></option><?php endforeach;?></select><?php elseif(str_starts_with($m[1],'select:')):?><select name="<?=e($f)?>" <?=$m[2]?'required':''?>><option value="">Select</option><?php foreach(explode(',',substr($m[1],7)) as $o):?><option value="<?=e($o)?>" <?=(string)$v===$o?'selected':''?>><?=e(ucfirst($o))?></option><?php endforeach;?></select><?php else:?><input type="<?=e($m[1])?>" name="<?=e($f)?>" value="<?=e(is_scalar($v)?(string)$v:'')?>" <?=$m[2]?'required':''?>><?php endif;?></label><?php endforeach;?>
+<?php if($action==='add'||$action==='edit'):?><div class="panel crud-form-panel"><h2><?=$action==='edit'?'Edit Record #'.$id:'Add New Record'?></h2><form method="post" action="<?=e(appUrl($formUrl))?>" class="form-grid crud-form"><input type="hidden" name="_csrf" value="<?=e(csrfToken())?>"><input type="hidden" name="entity" value="<?=e($key)?>"><input type="hidden" name="id" value="<?=e((string)($id??''))?>"><?php foreach($entity['fields'] as $f=>$m):if($key==='policies'&&(preg_match('/^insurer_[a-f]_(name|naic)$/',$f)||in_array($f,['policy_number','effective_date','expiration_date'],true)))continue;$v=$editing[$f]??'';?><label><?=e($m[0])?><?=$m[2]?' *':''?><?php if($m[1]==='insured_select'):?><select name="<?=e($f)?>" <?=$m[2]?'required':''?><?=in_array($key,['vehicles','drivers'],true)&&$f==='insured_id'?' id="insured-customer-select"':''?>><option value="">Select insured customer</option><?php foreach($customers as $c):?><option value="<?=$c['id']?>" <?=(string)$v===(string)$c['id']?'selected':''?>><?=e($c['legal_name'].' (DOT '.$c['dot_number'].')')?></option><?php endforeach;?></select><?php elseif(str_starts_with($m[1],'select:')):?><select name="<?=e($f)?>" <?=$m[2]?'required':''?>><option value="">Select</option><?php foreach(explode(',',substr($m[1],7)) as $o):?><option value="<?=e($o)?>" <?=(string)$v===$o?'selected':''?>><?=e(ucfirst($o))?></option><?php endforeach;?></select><?php else:$isAmountField=$m[1]==='decimal';?><input type="<?=$isAmountField?'text':e($m[1])?>" name="<?=e($f)?>" value="<?=e(is_scalar($v)?(string)$v:'')?>" <?=$isAmountField?'inputmode="decimal" data-amount-format':''?> <?=$m[2]?'required':''?>><?php endif;?></label><?php endforeach;?>
 <?php if(in_array($key,['vehicles','drivers'],true)): ?>
 <div class="carrier-selection-manager" id="carrier-selection-manager">
  <div class="carrier-selection-heading">
@@ -363,7 +363,7 @@ $formUrl=$listUrl.'&action='.$action.($id!==null?'&id='.(int)$id:'');
      <div class="acord-limits-grid">
       <?php foreach($cglLimitFields as $limitKey=>$limitLabel): ?>
        <label><?=e($limitLabel)?>
-        <span class="acord-money-input"><span>$</span><input data-coverage-detail type="text" inputmode="decimal" name="cgl_limit_<?=e($limitKey)?>" value="<?=e((string)($cglLimits[$limitKey]??''))?>" placeholder="0.00" maxlength="20"></span>
+        <span class="acord-money-input"><span>$</span><input data-coverage-detail data-amount-format type="text" inputmode="decimal" name="cgl_limit_<?=e($limitKey)?>" value="<?=e((string)($cglLimits[$limitKey]??''))?>" placeholder="0.00" maxlength="20"></span>
        </label>
       <?php endforeach; ?>
      </div>
@@ -381,7 +381,7 @@ $formUrl=$listUrl.'&action='.$action.($id!==null?'&id='.(int)$id:'');
      </label>
     </div>
     <label class="acord-limit-field">Combined Single Limit (Each Accident)
-     <span class="acord-money-input"><span>$</span><input type="text" inputmode="decimal" name="combined_single_limit" value="<?=e($combinedSingleLimit)?>" placeholder="e.g. 1000000" maxlength="20" aria-describedby="combined-limit-help"></span>
+     <span class="acord-money-input"><span>$</span><input type="text" inputmode="decimal" data-amount-format name="combined_single_limit" value="<?=e($combinedSingleLimit)?>" placeholder="e.g. 1000000" maxlength="20" aria-describedby="combined-limit-help"></span>
      <small id="combined-limit-help">Enter the Auto Liability limit. Commas and a leading $ are accepted.</small>
     </label>
    <?php elseif($typeKey==='physical_damage'):?>
@@ -398,7 +398,7 @@ $formUrl=$listUrl.'&action='.$action.($id!==null?'&id='.(int)$id:'');
     </div>
     <div class="acord-fields-grid acord-custom-insurance-extra">
      <label>Amount / Limit
-      <span class="acord-money-input"><span>$</span><input data-coverage-detail type="text" inputmode="decimal" name="physical_damage_amount" value="<?=e($physicalDamageAmount)?>" maxlength="20" placeholder="0.00"></span>
+      <span class="acord-money-input"><span>$</span><input data-coverage-detail type="text" inputmode="decimal" data-amount-format name="physical_damage_amount" value="<?=e($physicalDamageAmount)?>" maxlength="20" placeholder="0.00"></span>
      </label>
      <label class="acord-description-input">Description
       <input data-coverage-detail type="text" name="physical_damage_description" value="<?=e($physicalDamageDescription)?>" maxlength="250" placeholder="Physical damage coverage description">
@@ -418,7 +418,7 @@ $formUrl=$listUrl.'&action='.$action.($id!==null?'&id='.(int)$id:'');
     </div>
     <div class="acord-fields-grid acord-custom-insurance-extra">
      <label>Amount / Limit
-      <span class="acord-money-input"><span>$</span><input data-coverage-detail type="text" inputmode="decimal" name="motor_truck_cargo_amount" value="<?=e($motorTruckCargoAmount)?>" maxlength="20" placeholder="0.00"></span>
+      <span class="acord-money-input"><span>$</span><input data-coverage-detail type="text" inputmode="decimal" data-amount-format name="motor_truck_cargo_amount" value="<?=e($motorTruckCargoAmount)?>" maxlength="20" placeholder="0.00"></span>
      </label>
      <label class="acord-description-input">Description
       <input data-coverage-detail type="text" name="motor_truck_cargo_description" value="<?=e($motorTruckCargoDescription)?>" maxlength="250" placeholder="Motor truck cargo coverage description">
@@ -426,7 +426,7 @@ $formUrl=$listUrl.'&action='.$action.($id!==null?'&id='.(int)$id:'');
     </div>
    <?php elseif($typeKey==='umbrella_liability'):?>
     <label class="acord-extra-field">Shared Deductible / Retention Amount (Umbrella / Excess)
-     <input type="text" name="deductible_retention_amount" value="<?=e($deductibleRetentionAmount)?>" maxlength="30" placeholder="Amount, if applicable">
+     <input type="text" inputmode="decimal" data-amount-format name="deductible_retention_amount" value="<?=e($deductibleRetentionAmount)?>" maxlength="30" placeholder="Amount, if applicable">
     </label>
    <?php elseif($typeKey==='excess_liability'):?>
     <p class="muted acord-shared-limit-note">Deductible / retention amount is entered once in the Umbrella Liability card above.</p>
