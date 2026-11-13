@@ -125,8 +125,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'created_by' => (int)$u['id']
                     ]);
                     $subjectId = (int)$pdo->lastInsertId();
-                    $q = $pdo->prepare('INSERT IGNORE INTO policy_drivers (policy_id, driver_id) VALUES (:policy_id, :driver_id)');
-                    $q->execute(['policy_id' => (int)$policyId, 'driver_id' => $subjectId]);
                     $q = $pdo->prepare('SELECT * FROM drivers WHERE id = :id');
                     $q->execute(['id' => $subjectId]);
                     $after = $q->fetch();
@@ -174,8 +172,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'created_by' => (int)$u['id']
                     ]);
                     $subjectId = (int)$pdo->lastInsertId();
-                    $q = $pdo->prepare('INSERT IGNORE INTO policy_vehicles (policy_id, vehicle_id) VALUES (:policy_id, :vehicle_id)');
-                    $q->execute(['policy_id' => (int)$policyId, 'vehicle_id' => $subjectId]);
                     $q = $pdo->prepare('SELECT * FROM vehicles WHERE id = :id');
                     $q->execute(['id' => $subjectId]);
                     $after = $q->fetch();
