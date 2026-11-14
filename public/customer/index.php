@@ -524,7 +524,7 @@ $certificateErrors = [];
 $certificateForm = [
     'broker_emails' => '',
     'cc_emails' => '',
-    'broker_name' => trim((string)($selectedPolicy['broker_name'] ?? '')),
+    'broker_name' => '',
     'broker_address' => '',
     'vehicle_ids' => array_map(static fn(array $v): string => (string)$v['id'], $vehicles),
 ];
