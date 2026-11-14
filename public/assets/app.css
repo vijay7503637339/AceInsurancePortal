@@ -1591,3 +1591,9 @@
 .endorsement-empty{text-align:center;padding:30px!important}
 @media(max-width:1000px){.endorsement-review-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.endorsement-customer-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:680px){.endorsement-hero{align-items:flex-start;flex-direction:column;padding:22px}.endorsement-hero-stat{align-items:flex-start;width:100%}.endorsement-customer-form{align-items:stretch;flex-direction:column}.endorsement-customer-form .btn{width:100%}.endorsement-customer-summary,.endorsement-type-grid,.endorsement-fields,.endorsement-review-grid{grid-template-columns:1fr}.endorsement-customer-panel,.endorsement-policy-panel,.endorsement-type-panel,.endorsement-detail-panel,.endorsement-review-panel,.endorsement-history-panel{padding:16px}.endorsement-type-card{min-height:120px}.endorsement-form-actions{align-items:stretch;flex-direction:column-reverse}.endorsement-form-actions .btn{width:100%}}
+
+.endorsement-coverage-subform{display:grid;grid-column:1/-1;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:16px;border:1px solid #e0e8f2;border-radius:10px;background:#fbfcfe}
+.endorsement-coverage-subform[hidden]{display:none!important}
+.endorsement-coverage-subform h4{grid-column:1/-1;margin:0;padding-bottom:8px;border-bottom:1px solid #e9eef5;color:#2b4567;font-size:13px}
+.endorsement-current-value{color:#7d8ca1;font-size:10px;font-weight:600}
+@media(max-width:680px){.endorsement-coverage-subform{grid-template-columns:1fr;padding:12px}}

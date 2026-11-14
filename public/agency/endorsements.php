@@ -26,7 +26,7 @@ if ($insuredId > 0) {
     if (!$customer) {
         $insuredId = 0;
     } else {
-        $q = db()->prepare("SELECT id, policy_number, business_line, status, effective_date, expiration_date, total_premium, coverage_data FROM policies WHERE insured_id = :insured_id ORDER BY CASE WHEN status = 'active' THEN 0 ELSE 1 END, id DESC");
+        $q = db()->prepare("SELECT id, policy_number, business_line, status, effective_date, expiration_date, written_premium, estimated_fee, estimated_tax, total_premium, coverage_data FROM policies WHERE insured_id = :insured_id ORDER BY CASE WHEN status = 'active' THEN 0 ELSE 1 END, id DESC");
         $q->execute(['insured_id' => $insuredId]);
         $policies = $q->fetchAll();
 
@@ -51,10 +51,14 @@ if ($insuredId > 0) {
 }
 
 $selectedCoverageKeys = [];
+$selectedPolicyCoverageData = [];
 if ($selectedPolicy && !empty($selectedPolicy['coverage_data'])) {
-    $selectedPolicyCoverageData = json_decode((string)$selectedPolicy['coverage_data'], true);
-    if (is_array($selectedPolicyCoverageData) && is_array($selectedPolicyCoverageData['insurance_types'] ?? null)) {
-        $selectedCoverageKeys = array_values(array_unique(array_map('strval', $selectedPolicyCoverageData['insurance_types'])));
+    $decodedSelectedCoverage = json_decode((string)$selectedPolicy['coverage_data'], true);
+    if (is_array($decodedSelectedCoverage)) {
+        $selectedPolicyCoverageData = $decodedSelectedCoverage;
+        if (is_array($selectedPolicyCoverageData['insurance_types'] ?? null)) {
+            $selectedCoverageKeys = array_values(array_unique(array_map('strval', $selectedPolicyCoverageData['insurance_types'])));
+        }
     }
 }
 
@@ -67,6 +71,8 @@ $coverageTypes = [
     'excess_liability' => 'Excess Liability',
     'workers_compensation_employers_liability' => "Workers Compensation & Employers' Liability"
 ];
+$addableCoverageKeys = ['commercial_general_liability','automobile_liability','physical_damage','motor_truck_cargo'];
+$addableCoverageTypes = array_intersect_key($coverageTypes, array_flip($addableCoverageKeys));
 
 function endorsementAmount($raw, string $label): string {
     $value = trim((string)$raw);
@@ -287,89 +293,208 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'estimated_tax'=>'Estimated Tax',
                         'total_premium'=>'Total Premium'
                     ];
-                    $field = (string)($_POST['policy_amount_field'] ?? '');
-                    if (!isset($amountLabels[$field])) throw new InvalidArgumentException('Select a valid policy amount.');
-                    $newValue = endorsementAmount($_POST['policy_new_amount'] ?? '', $amountLabels[$field]);
-                    $before = ['field'=>$field,'label'=>$amountLabels[$field],'value'=>$policy[$field]];
-                    $pdo->prepare('UPDATE policies SET '.$field.' = :value WHERE id = :id AND insured_id = :insured_id')
-                        ->execute(['value'=>$newValue,'id'=>(int)$policyId,'insured_id'=>$insuredId]);
-                    $after = ['field'=>$field,'label'=>$amountLabels[$field],'value'=>$newValue];
-                    $summary = 'Updated '.$amountLabels[$field].' on policy '.$policy['policy_number'].' from '.(string)($before['value'] ?? 'not set').' to '.$newValue.'.';
+                    $submittedAmounts = $_POST['policy_amounts'] ?? [];
+                    if (!is_array($submittedAmounts)) throw new InvalidArgumentException('Enter valid policy amount fields.');
+
+                    $amountChanges = [];
+                    $amountUpdates = [];
+                    foreach ($amountLabels as $field => $label) {
+                        $rawAmount = trim((string)($submittedAmounts[$field] ?? ''));
+                        if ($rawAmount === '') continue;
+                        $newValue = endorsementAmount($rawAmount, $label);
+                        $oldValue = $policy[$field] ?? null;
+                        if ($oldValue !== null && (string)$oldValue === $newValue) continue;
+                        $amountUpdates[$field] = $newValue;
+                        $amountChanges[$field] = ['label'=>$label,'before'=>$oldValue,'after'=>$newValue];
+                    }
+                    if (!$amountUpdates) throw new InvalidArgumentException('Enter at least one new policy amount. Leave other fields blank to keep their current values.');
+
+                    $setParts = [];
+                    $params = ['id'=>(int)$policyId,'insured_id'=>$insuredId];
+                    foreach ($amountUpdates as $field => $value) {
+                        $param = 'amount_'.$field;
+                        $setParts[] = $field.' = :'.$param;
+                        $params[$param] = $value;
+                    }
+                    $pdo->prepare('UPDATE policies SET '.implode(', ',$setParts).' WHERE id = :id AND insured_id = :insured_id')->execute($params);
+
+                    $summaryParts = [];
+                    foreach ($amountChanges as $change) {
+                        $summaryParts[] = $change['label'].' from '.(string)($change['before'] ?? 'not set').' to '.$change['after'];
+                    }
+                    $summary = 'Updated policy amounts on policy '.$policy['policy_number'].': '.implode('; ',$summaryParts).'.';
+                    $subjectType = 'policy';
+                    $subjectId = (int)$policyId;
+                    $before = ['amount_changes'=>array_map(static fn($change) => ['label'=>$change['label'],'value'=>$change['before']],$amountChanges)];
+                    $after = ['amount_changes'=>array_map(static fn($change) => ['label'=>$change['label'],'value'=>$change['after']],$amountChanges)];
+                    $detail = ['amount_changes'=>$amountChanges];
+                } elseif ($actionType === 'coverage_add') {
+                    $coverageKey = (string)($_POST['coverage_type'] ?? '');
+                    if (!isset($addableCoverageTypes[$coverageKey])) throw new InvalidArgumentException('Select one of the four supported coverages to add.');
+                    $types = is_array($coverageData['insurance_types'] ?? null) ? array_values(array_map('strval',$coverageData['insurance_types'])) : [];
+                    if (in_array($coverageKey,$types,true)) throw new InvalidArgumentException('This coverage is already included in the policy.');
+
+                    $before = [
+                        'insurance_types'=>$types,
+                        'coverage'=>$coverageData[$coverageKey] ?? null,
+                        'combined_single_limit'=>$coverageData['combined_single_limit'] ?? null,
+                        'policy_dates'=>['effective_date'=>$policy['effective_date'] ?? null,'expiration_date'=>$policy['expiration_date'] ?? null],
+                        'coverage_data_snapshot'=>$coverageDataBefore
+                    ];
+                    $policyDateUpdates = [];
+                    if ($coverageKey === 'commercial_general_liability') {
+                        $details = is_array($coverageData[$coverageKey] ?? null) ? $coverageData[$coverageKey] : [];
+                        $policyNumber = trim((string)($_POST['coverage_add_cgl_policy_number'] ?? ''));
+                        if ($policyNumber !== '') $details['policy_number'] = mb_substr($policyNumber,0,100);
+                        foreach (['effective_date'=>'Policy Start Date','expiration_date'=>'Policy End Date'] as $field=>$label) {
+                            $rawDate = trim((string)($_POST['coverage_add_cgl_'.$field] ?? ''));
+                            if ($rawDate !== '') $details[$field] = endorsementDate($rawDate,'Commercial General Liability '.$label);
+                        }
+                        $limitFields = [
+                            'each_occurrence'=>'Each Occurrence',
+                            'damage_to_rented_premises'=>'Damage to Rented Premises',
+                            'medical_expense'=>'Medical Expense (Any One Person)',
+                            'personal_advertising_injury'=>'Personal & Advertising Injury',
+                            'general_aggregate'=>'General Aggregate',
+                            'products_completed_operations_aggregate'=>'Products - Completed Operations Aggregate'
+                        ];
+                        if (!is_array($details['limits'] ?? null)) $details['limits'] = [];
+                        foreach ($limitFields as $field=>$label) {
+                            $rawAmount = trim((string)($_POST['coverage_add_cgl_limits'][$field] ?? ''));
+                            if ($rawAmount !== '') $details['limits'][$field] = endorsementAmount($rawAmount,'Commercial General Liability — '.$label);
+                        }
+                        $coverageData[$coverageKey] = $details;
+                    } elseif ($coverageKey === 'automobile_liability') {
+                        foreach (['effective_date'=>'Policy Start Date','expiration_date'=>'Policy End Date'] as $field=>$label) {
+                            $rawDate = trim((string)($_POST['coverage_add_auto_'.$field] ?? ''));
+                            if ($rawDate !== '') $policyDateUpdates[$field] = endorsementDate($rawDate,'Automobile Liability '.$label);
+                        }
+                        $rawLimit = trim((string)($_POST['coverage_add_auto_combined_single_limit'] ?? ''));
+                        if ($rawLimit !== '') $coverageData['combined_single_limit'] = endorsementAmount($rawLimit,'Automobile Liability — Combined Single Limit');
+                    } else {
+                        $details = is_array($coverageData[$coverageKey] ?? null) ? $coverageData[$coverageKey] : [];
+                        $prefix = $coverageKey === 'physical_damage' ? 'coverage_add_physical_damage_' : 'coverage_add_motor_truck_cargo_';
+                        $coverageLabel = $coverageTypes[$coverageKey];
+                        $policyNumber = trim((string)($_POST[$prefix.'policy_number'] ?? ''));
+                        if ($policyNumber !== '') $details['policy_number'] = mb_substr($policyNumber,0,100);
+                        foreach (['effective_date'=>'Policy Start Date','expiration_date'=>'Policy End Date'] as $field=>$label) {
+                            $rawDate = trim((string)($_POST[$prefix.$field] ?? ''));
+                            if ($rawDate !== '') $details[$field] = endorsementDate($rawDate,$coverageLabel.' '.$label);
+                        }
+                        $rawAmount = trim((string)($_POST[$prefix.'amount'] ?? ''));
+                        if ($rawAmount !== '') $details['amount'] = endorsementAmount($rawAmount,$coverageLabel.' Amount / Limit');
+                        $description = trim((string)($_POST[$prefix.'description'] ?? ''));
+                        if ($description !== '') $details['description'] = mb_substr($description,0,250);
+                        $coverageData[$coverageKey] = $details;
+                    }
+
+                    $types[] = $coverageKey;
+                    if (!is_array($coverageData['insurance_carriers'] ?? null)) $coverageData['insurance_carriers'] = [];
+                    $coverageData['insurance_carriers'][$coverageKey] = 'A';
+                    $coverageData['insurance_types'] = $types;
+                    $coverageData['types_of_insurance_summary'] = implode(', ',array_map(static fn($t) => $coverageTypes[$t] ?? $t,$types));
+
+                    $setParts = ['coverage_data = :data'];
+                    $params = ['data'=>json_encode($coverageData,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR),'id'=>(int)$policyId,'insured_id'=>$insuredId];
+                    foreach ($policyDateUpdates as $field=>$value) {
+                        $setParts[] = $field.' = :'.$field;
+                        $params[$field] = $value;
+                    }
+                    $pdo->prepare('UPDATE policies SET '.implode(', ',$setParts).' WHERE id = :id AND insured_id = :insured_id')->execute($params);
+
+                    $after = [
+                        'insurance_types'=>$types,
+                        'coverage'=>$coverageData[$coverageKey] ?? null,
+                        'combined_single_limit'=>$coverageData['combined_single_limit'] ?? null,
+                        'policy_dates'=>[
+                            'effective_date'=>$policyDateUpdates['effective_date'] ?? ($policy['effective_date'] ?? null),
+                            'expiration_date'=>$policyDateUpdates['expiration_date'] ?? ($policy['expiration_date'] ?? null)
+                        ],
+                        'insurance_carrier'=>'A',
+                        'coverage_data_snapshot'=>$coverageData
+                    ];
+                    $summary = 'Added '.$coverageTypes[$coverageKey].' coverage on policy '.$policy['policy_number'].' with the submitted dates and limit details.';
                     $subjectType = 'policy';
                     $subjectId = (int)$policyId;
                     $detail = ['before'=>$before,'after'=>$after];
-                } elseif ($actionType === 'coverage_add' || $actionType === 'coverage_remove') {
+                } elseif ($actionType === 'coverage_remove') {
                     $coverageKey = (string)($_POST['coverage_type'] ?? '');
                     if (!isset($coverageTypes[$coverageKey])) throw new InvalidArgumentException('Select a valid coverage type.');
                     $types = is_array($coverageData['insurance_types'] ?? null) ? array_values(array_map('strval',$coverageData['insurance_types'])) : [];
-                    $exists = in_array($coverageKey,$types,true);
-                    if ($actionType === 'coverage_add' && $exists) throw new InvalidArgumentException('This coverage is already included in the policy.');
-                    if ($actionType === 'coverage_remove' && !$exists) throw new InvalidArgumentException('This coverage is not currently selected on the policy.');
+                    if (!in_array($coverageKey,$types,true)) throw new InvalidArgumentException('This coverage is not currently selected on the policy.');
                     $before = ['insurance_types'=>$types,'coverage'=>$coverageData[$coverageKey] ?? null,'insurance_carrier'=>$coverageData['insurance_carriers'][$coverageKey] ?? null,'coverage_data_snapshot'=>$coverageDataBefore];
-                    if ($actionType === 'coverage_add') {
-                        $types[] = $coverageKey;
-                        if (!is_array($coverageData['insurance_carriers'] ?? null)) $coverageData['insurance_carriers'] = [];
-                        $coverageData['insurance_carriers'][$coverageKey] = 'A';
-                    } else {
-                        $types = array_values(array_diff($types,[$coverageKey]));
-                        if (!is_array($coverageData['insurance_carriers'] ?? null)) $coverageData['insurance_carriers'] = [];
-                        if (!is_array($coverageData['coverage_options'] ?? null)) $coverageData['coverage_options'] = [];
-                        unset($coverageData['insurance_carriers'][$coverageKey],$coverageData['coverage_options'][$coverageKey]);
-                        if (in_array($coverageKey,['commercial_general_liability','physical_damage','motor_truck_cargo'],true)) unset($coverageData[$coverageKey]);
-                        if ($coverageKey === 'automobile_liability') unset($coverageData['combined_single_limit']);
-                    }
+                    $types = array_values(array_diff($types,[$coverageKey]));
+                    if (!is_array($coverageData['insurance_carriers'] ?? null)) $coverageData['insurance_carriers'] = [];
+                    if (!is_array($coverageData['coverage_options'] ?? null)) $coverageData['coverage_options'] = [];
+                    unset($coverageData['insurance_carriers'][$coverageKey],$coverageData['coverage_options'][$coverageKey]);
+                    if (in_array($coverageKey,['commercial_general_liability','physical_damage','motor_truck_cargo'],true)) unset($coverageData[$coverageKey]);
+                    if ($coverageKey === 'automobile_liability') unset($coverageData['combined_single_limit']);
                     $coverageData['insurance_types'] = $types;
                     $coverageData['types_of_insurance_summary'] = implode(', ',array_map(static fn($t) => $coverageTypes[$t] ?? $t,$types));
                     $pdo->prepare('UPDATE policies SET coverage_data = :data WHERE id = :id AND insured_id = :insured_id')
                         ->execute(['data'=>json_encode($coverageData,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR),'id'=>(int)$policyId,'insured_id'=>$insuredId]);
                     $after = ['insurance_types'=>$types,'coverage'=>$coverageData[$coverageKey] ?? null,'insurance_carrier'=>$coverageData['insurance_carriers'][$coverageKey] ?? null,'coverage_data_snapshot'=>$coverageData];
-                    $summary = ($actionType === 'coverage_add' ? 'Added ' : 'Removed ').$coverageTypes[$coverageKey].' coverage on policy '.$policy['policy_number'].'.';
+                    $summary = 'Removed '.$coverageTypes[$coverageKey].' coverage on policy '.$policy['policy_number'].'.';
                     $subjectType = 'policy';
                     $subjectId = (int)$policyId;
                     $detail = ['before'=>$before,'after'=>$after];
                 } elseif ($actionType === 'coverage_amount_update') {
                     $coverageKey = (string)($_POST['coverage_type'] ?? '');
-                    $field = (string)($_POST['coverage_amount_field'] ?? '');
                     $types = is_array($coverageData['insurance_types'] ?? null) ? array_values(array_map('strval',$coverageData['insurance_types'])) : [];
-                    if (!isset($coverageTypes[$coverageKey]) || !in_array($coverageKey,$types,true)) throw new InvalidArgumentException('Select a coverage currently included in this policy.');
                     $fieldLabels = [
                         'commercial_general_liability'=>[
                             'each_occurrence'=>'Each Occurrence',
                             'damage_to_rented_premises'=>'Damage to Rented Premises',
-                            'medical_expense'=>'Medical Expense',
+                            'medical_expense'=>'Medical Expense (Any One Person)',
                             'personal_advertising_injury'=>'Personal & Advertising Injury',
                             'general_aggregate'=>'General Aggregate',
                             'products_completed_operations_aggregate'=>'Products - Completed Operations Aggregate'
                         ],
                         'automobile_liability'=>['combined_single_limit'=>'Combined Single Limit'],
-                        'physical_damage'=>['amount'=>'Physical Damage Amount'],
-                        'motor_truck_cargo'=>['amount'=>'Motor Truck Cargo Amount'],
+                        'physical_damage'=>['amount'=>'Physical Damage Amount / Limit'],
+                        'motor_truck_cargo'=>['amount'=>'Motor Truck Cargo Amount / Limit'],
                         'umbrella_liability'=>['deductible_retention_amount'=>'Deductible / Retention Amount'],
                         'excess_liability'=>['deductible_retention_amount'=>'Deductible / Retention Amount']
                     ];
-                    if (!isset($fieldLabels[$coverageKey][$field])) throw new InvalidArgumentException('This amount field is not available for the selected coverage.');
-                    $newValue = endorsementAmount($_POST['coverage_new_amount'] ?? '',$fieldLabels[$coverageKey][$field]);
-                    if ($coverageKey === 'commercial_general_liability') {
-                        if (!is_array($coverageData[$coverageKey] ?? null)) $coverageData[$coverageKey] = [];
-                        if (!is_array($coverageData[$coverageKey]['limits'] ?? null)) $coverageData[$coverageKey]['limits'] = [];
-                        $oldValue = $coverageData[$coverageKey]['limits'][$field] ?? null;
-                        $coverageData[$coverageKey]['limits'][$field] = $newValue;
-                    } elseif ($field === 'combined_single_limit' || $field === 'deductible_retention_amount') {
-                        $oldValue = $coverageData[$field] ?? null;
-                        $coverageData[$field] = $newValue;
-                    } else {
-                        if (!is_array($coverageData[$coverageKey] ?? null)) $coverageData[$coverageKey] = [];
-                        $oldValue = $coverageData[$coverageKey]['amount'] ?? null;
-                        $coverageData[$coverageKey]['amount'] = $newValue;
+                    if (!isset($coverageTypes[$coverageKey]) || !isset($fieldLabels[$coverageKey]) || !in_array($coverageKey,$types,true)) {
+                        throw new InvalidArgumentException('Select a coverage currently included in this policy.');
                     }
+                    $submittedAmounts = $_POST['coverage_amounts'] ?? [];
+                    if (!is_array($submittedAmounts)) throw new InvalidArgumentException('Enter valid coverage amount fields.');
+
+                    $amountChanges = [];
+                    foreach ($fieldLabels[$coverageKey] as $field=>$label) {
+                        $rawAmount = trim((string)($submittedAmounts[$field] ?? ''));
+                        if ($rawAmount === '') continue;
+                        $newValue = endorsementAmount($rawAmount,$label);
+                        if ($coverageKey === 'commercial_general_liability') {
+                            if (!is_array($coverageData[$coverageKey] ?? null)) $coverageData[$coverageKey] = [];
+                            if (!is_array($coverageData[$coverageKey]['limits'] ?? null)) $coverageData[$coverageKey]['limits'] = [];
+                            $oldValue = $coverageData[$coverageKey]['limits'][$field] ?? null;
+                            $coverageData[$coverageKey]['limits'][$field] = $newValue;
+                        } elseif ($field === 'combined_single_limit' || $field === 'deductible_retention_amount') {
+                            $oldValue = $coverageData[$field] ?? null;
+                            $coverageData[$field] = $newValue;
+                        } else {
+                            if (!is_array($coverageData[$coverageKey] ?? null)) $coverageData[$coverageKey] = [];
+                            $oldValue = $coverageData[$coverageKey]['amount'] ?? null;
+                            $coverageData[$coverageKey]['amount'] = $newValue;
+                        }
+                        if ($oldValue !== null && (string)$oldValue === $newValue) continue;
+                        $amountChanges[$field] = ['label'=>$label,'before'=>$oldValue,'after'=>$newValue];
+                    }
+                    if (!$amountChanges) throw new InvalidArgumentException('Enter at least one new amount for the selected coverage. Leave other fields blank to keep their current values.');
+
                     $pdo->prepare('UPDATE policies SET coverage_data = :data WHERE id = :id AND insured_id = :insured_id')
                         ->execute(['data'=>json_encode($coverageData,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR),'id'=>(int)$policyId,'insured_id'=>$insuredId]);
-                    $before = ['coverage'=>$coverageTypes[$coverageKey],'field'=>$field,'label'=>$fieldLabels[$coverageKey][$field],'value'=>$oldValue,'coverage_data_snapshot'=>$coverageDataBefore];
-                    $after = ['coverage'=>$coverageTypes[$coverageKey],'field'=>$field,'label'=>$fieldLabels[$coverageKey][$field],'value'=>$newValue,'coverage_data_snapshot'=>$coverageData];
-                    $summary = 'Updated '.$coverageTypes[$coverageKey].' / '.$fieldLabels[$coverageKey][$field].' on policy '.$policy['policy_number'].' from '.(string)($oldValue ?? 'not set').' to '.$newValue.'.';
+                    $summaryParts = [];
+                    foreach ($amountChanges as $change) $summaryParts[] = $change['label'].' from '.(string)($change['before'] ?? 'not set').' to '.$change['after'];
+                    $summary = 'Updated '.$coverageTypes[$coverageKey].' amounts on policy '.$policy['policy_number'].': '.implode('; ',$summaryParts).'.';
                     $subjectType = 'policy';
                     $subjectId = (int)$policyId;
-                    $detail = ['before'=>$before,'after'=>$after];
+                    $before = ['amount_changes'=>array_map(static fn($change) => ['label'=>$change['label'],'value'=>$change['before']],$amountChanges),'coverage_data_snapshot'=>$coverageDataBefore];
+                    $after = ['amount_changes'=>array_map(static fn($change) => ['label'=>$change['label'],'value'=>$change['after']],$amountChanges),'coverage_data_snapshot'=>$coverageData];
+                    $detail = ['amount_changes'=>$amountChanges];
                 } else {
                     throw new InvalidArgumentException('Choose a valid policy endorsement action.');
                 }
@@ -642,42 +767,172 @@ $selectedPolicyId = (int)($selectedPolicy['id'] ?? 0);
           </div>
 
           <div class="endorsement-fields" data-category="policy" data-action="amount_update" hidden>
-            <h3>Update Policy Amount</h3>
-            <label>Amount Field<select name="policy_amount_field"><option value="written_premium">Written Premium</option><option value="estimated_fee">Estimated Fee</option><option value="estimated_tax">Estimated Tax</option><option value="total_premium">Total Premium</option></select></label>
-            <label>New Amount ($)<input type="text" inputmode="decimal" data-amount-format data-required name="policy_new_amount" value="<?=e((string)($form['policy_new_amount']??''))?>"></label>
+            <h3>Update Policy Amounts</h3>
+            <p class="endorsement-help">Enter only the amounts that need to change. Any field left blank will keep its current policy amount.</p>
+            <?php foreach(['written_premium'=>'Written Premium','estimated_fee'=>'Estimated Fees','estimated_tax'=>'Estimated Tax','total_premium'=>'Total Premium'] as $amountField=>$amountLabel):?>
+              <label><?=e($amountLabel)?> ($)
+                <input type="text" inputmode="decimal" data-amount-format name="policy_amounts[<?=e($amountField)?>]" value="<?=e((string)($form['policy_amounts'][$amountField]??''))?>" placeholder="Leave blank to keep current">
+                <small class="endorsement-current-value">Current: <?=e((string)($selectedPolicy[$amountField]??'Not set'))?></small>
+              </label>
+            <?php endforeach;?>
           </div>
 
           <div class="endorsement-fields" data-category="policy" data-action="coverage_add" hidden>
             <h3>Add Coverage</h3>
-            <label>Coverage to Add<select name="coverage_type" data-required><option value="">Select coverage...</option><?php foreach($coverageTypes as $key=>$label):if(in_array($key,$selectedCoverageKeys,true))continue;?><option value="<?=e($key)?>"><?=e($label)?></option><?php endforeach;?></select></label>
-            <p class="endorsement-help">The coverage type will be added to this policy. Insurer A is set as the initial carrier; carrier and detailed limits can be reviewed in the Policy section.</p>
+            <label>Coverage to Add
+              <select name="coverage_type" id="endorsement-coverage-add-type" data-required>
+                <option value="">Select coverage...</option>
+                <?php foreach($addableCoverageTypes as $key=>$label):if(in_array($key,$selectedCoverageKeys,true))continue;?>
+                  <option value="<?=e($key)?>" <?=((string)($form['coverage_type']??'')===$key)?'selected':''?>><?=e($label)?></option>
+                <?php endforeach;?>
+              </select>
+            </label>
+
+            <div class="endorsement-coverage-subform" data-coverage-add-form="commercial_general_liability" hidden>
+              <h4>Commercial General Liability Details</h4>
+              <label>Policy Number
+                <input name="coverage_add_cgl_policy_number" maxlength="100" value="<?=e((string)($form['coverage_add_cgl_policy_number']??($selectedPolicyCoverageData['commercial_general_liability']['policy_number']??'')))?>">
+              </label>
+              <label>Policy Start Date
+                <input type="date" name="coverage_add_cgl_effective_date" value="<?=e((string)($form['coverage_add_cgl_effective_date']??($selectedPolicyCoverageData['commercial_general_liability']['effective_date']??'')))?>">
+              </label>
+              <label>Policy End Date
+                <input type="date" name="coverage_add_cgl_expiration_date" value="<?=e((string)($form['coverage_add_cgl_expiration_date']??($selectedPolicyCoverageData['commercial_general_liability']['expiration_date']??'')))?>">
+              </label>
+              <?php $cglAddLimits=is_array($selectedPolicyCoverageData['commercial_general_liability']['limits']??null)?$selectedPolicyCoverageData['commercial_general_liability']['limits']:[];?>
+              <?php foreach(['each_occurrence'=>'Each Occurrence','damage_to_rented_premises'=>'Damage to Rented Premises','medical_expense'=>'Medical Expense (Any One Person)','personal_advertising_injury'=>'Personal & Advertising Injury','general_aggregate'=>'General Aggregate','products_completed_operations_aggregate'=>'Products - Completed Operations Aggregate'] as $limitField=>$limitLabel):?>
+                <label><?=e($limitLabel)?> ($)
+                  <input type="text" inputmode="decimal" data-amount-format name="coverage_add_cgl_limits[<?=e($limitField)?>]" value="<?=e((string)($form['coverage_add_cgl_limits'][$limitField]??($cglAddLimits[$limitField]??'')))?>" placeholder="0.00">
+                </label>
+              <?php endforeach;?>
+            </div>
+
+            <div class="endorsement-coverage-subform" data-coverage-add-form="automobile_liability" hidden>
+              <h4>Automobile Liability Details</h4>
+              <label>Policy Number
+                <input type="text" value="<?=e((string)($selectedPolicy['policy_number']??''))?>" readonly>
+              </label>
+              <label>Policy Start Date
+                <input type="date" name="coverage_add_auto_effective_date" value="<?=e((string)($form['coverage_add_auto_effective_date']??($selectedPolicy['effective_date']??'')))?>">
+              </label>
+              <label>Policy End Date
+                <input type="date" name="coverage_add_auto_expiration_date" value="<?=e((string)($form['coverage_add_auto_expiration_date']??($selectedPolicy['expiration_date']??'')))?>">
+              </label>
+              <label>Combined Single Limit (Each Accident) ($)
+                <input type="text" inputmode="decimal" data-amount-format name="coverage_add_auto_combined_single_limit" value="<?=e((string)($form['coverage_add_auto_combined_single_limit']??($selectedPolicyCoverageData['combined_single_limit']??'')))?>" placeholder="0.00">
+              </label>
+            </div>
+
+            <div class="endorsement-coverage-subform" data-coverage-add-form="physical_damage" hidden>
+              <h4>Physical Damage Details</h4>
+              <label>Policy Number
+                <input name="coverage_add_physical_damage_policy_number" maxlength="100" value="<?=e((string)($form['coverage_add_physical_damage_policy_number']??($selectedPolicyCoverageData['physical_damage']['policy_number']??'')))?>">
+              </label>
+              <label>Policy Start Date
+                <input type="date" name="coverage_add_physical_damage_effective_date" value="<?=e((string)($form['coverage_add_physical_damage_effective_date']??($selectedPolicyCoverageData['physical_damage']['effective_date']??'')))?>">
+              </label>
+              <label>Policy End Date
+                <input type="date" name="coverage_add_physical_damage_expiration_date" value="<?=e((string)($form['coverage_add_physical_damage_expiration_date']??($selectedPolicyCoverageData['physical_damage']['expiration_date']??'')))?>">
+              </label>
+              <label>Amount / Limit ($)
+                <input type="text" inputmode="decimal" data-amount-format name="coverage_add_physical_damage_amount" value="<?=e((string)($form['coverage_add_physical_damage_amount']??($selectedPolicyCoverageData['physical_damage']['amount']??'')))?>" placeholder="0.00">
+              </label>
+              <label>Description
+                <input name="coverage_add_physical_damage_description" maxlength="250" value="<?=e((string)($form['coverage_add_physical_damage_description']??($selectedPolicyCoverageData['physical_damage']['description']??'')))?>">
+              </label>
+            </div>
+
+            <div class="endorsement-coverage-subform" data-coverage-add-form="motor_truck_cargo" hidden>
+              <h4>Motor Truck Cargo Details</h4>
+              <label>Policy Number
+                <input name="coverage_add_motor_truck_cargo_policy_number" maxlength="100" value="<?=e((string)($form['coverage_add_motor_truck_cargo_policy_number']??($selectedPolicyCoverageData['motor_truck_cargo']['policy_number']??'')))?>">
+              </label>
+              <label>Policy Start Date
+                <input type="date" name="coverage_add_motor_truck_cargo_effective_date" value="<?=e((string)($form['coverage_add_motor_truck_cargo_effective_date']??($selectedPolicyCoverageData['motor_truck_cargo']['effective_date']??'')))?>">
+              </label>
+              <label>Policy End Date
+                <input type="date" name="coverage_add_motor_truck_cargo_expiration_date" value="<?=e((string)($form['coverage_add_motor_truck_cargo_expiration_date']??($selectedPolicyCoverageData['motor_truck_cargo']['expiration_date']??'')))?>">
+              </label>
+              <label>Amount / Limit ($)
+                <input type="text" inputmode="decimal" data-amount-format name="coverage_add_motor_truck_cargo_amount" value="<?=e((string)($form['coverage_add_motor_truck_cargo_amount']??($selectedPolicyCoverageData['motor_truck_cargo']['amount']??'')))?>" placeholder="0.00">
+              </label>
+              <label>Description
+                <input name="coverage_add_motor_truck_cargo_description" maxlength="250" value="<?=e((string)($form['coverage_add_motor_truck_cargo_description']??($selectedPolicyCoverageData['motor_truck_cargo']['description']??'')))?>">
+              </label>
+            </div>
+            <p class="endorsement-help">The selected coverage and the details entered above are saved together in this endorsement. Empty optional fields are not used to erase existing policy data.</p>
           </div>
 
           <div class="endorsement-fields" data-category="policy" data-action="coverage_remove" hidden>
             <h3>Remove Coverage</h3>
-            <label>Coverage to Remove<select name="coverage_type" data-required><option value="">Select coverage...</option><?php foreach($coverageTypes as $key=>$label):if(!in_array($key,$selectedCoverageKeys,true))continue;?><option value="<?=e($key)?>"><?=e($label)?></option><?php endforeach;?></select></label>
+            <label>Coverage to Remove
+              <select name="coverage_type" data-required><option value="">Select coverage...</option><?php foreach($coverageTypes as $key=>$label):if(!in_array($key,$selectedCoverageKeys,true))continue;?><option value="<?=e($key)?>"><?=e($label)?></option><?php endforeach;?></select>
+            </label>
             <p class="endorsement-help">Only the chosen coverage is removed from the policy. Before and after data is retained in the endorsement history.</p>
           </div>
 
           <div class="endorsement-fields" data-category="policy" data-action="coverage_amount_update" hidden>
-            <h3>Update Coverage Amount</h3>
-            <label>Coverage<select name="coverage_type" id="endorsement-coverage-type" data-required><option value="">Select coverage...</option><?php foreach($coverageTypes as $key=>$label):if(!in_array($key,$selectedCoverageKeys,true)||!in_array($key,['commercial_general_liability','automobile_liability','physical_damage','motor_truck_cargo','umbrella_liability','excess_liability'],true))continue;?><option value="<?=e($key)?>"><?=e($label)?></option><?php endforeach;?></select></label>
-            <label>Amount Field
-              <select name="coverage_amount_field" id="endorsement-coverage-amount-field" data-required>
-                <option value="each_occurrence" data-coverage="commercial_general_liability">Each Occurrence</option>
-                <option value="damage_to_rented_premises" data-coverage="commercial_general_liability">Damage to Rented Premises</option>
-                <option value="medical_expense" data-coverage="commercial_general_liability">Medical Expense</option>
-                <option value="personal_advertising_injury" data-coverage="commercial_general_liability">Personal & Advertising Injury</option>
-                <option value="general_aggregate" data-coverage="commercial_general_liability">General Aggregate</option>
-                <option value="products_completed_operations_aggregate" data-coverage="commercial_general_liability">Products - Completed Operations Aggregate</option>
-                <option value="combined_single_limit" data-coverage="automobile_liability">Combined Single Limit</option>
-                <option value="amount" data-coverage="physical_damage">Physical Damage Amount</option>
-                <option value="amount" data-coverage="motor_truck_cargo">Motor Truck Cargo Amount</option>
-                <option value="deductible_retention_amount" data-coverage="umbrella_liability">Deductible / Retention Amount</option>
-                <option value="deductible_retention_amount" data-coverage="excess_liability">Deductible / Retention Amount</option>
+            <h3>Update Coverage Amounts</h3>
+            <label>Coverage
+              <select name="coverage_type" id="endorsement-coverage-type" data-required>
+                <option value="">Select coverage...</option>
+                <?php foreach($coverageTypes as $key=>$label):if(!in_array($key,$selectedCoverageKeys,true)||!in_array($key,['commercial_general_liability','automobile_liability','physical_damage','motor_truck_cargo','umbrella_liability','excess_liability'],true))continue;?>
+                  <option value="<?=e($key)?>" <?=((string)($form['coverage_type']??'')===$key)?'selected':''?>><?=e($label)?></option>
+                <?php endforeach;?>
               </select>
             </label>
-            <label>New Coverage Amount ($)<input type="text" inputmode="decimal" data-amount-format data-required name="coverage_new_amount" value="<?=e((string)($form['coverage_new_amount']??''))?>"></label>
+
+            <div class="endorsement-coverage-subform" data-coverage-amount-form="commercial_general_liability" hidden>
+              <h4>Commercial General Liability Limits</h4>
+              <?php $cglCurrentLimits=is_array($selectedPolicyCoverageData['commercial_general_liability']['limits']??null)?$selectedPolicyCoverageData['commercial_general_liability']['limits']:[];?>
+              <?php foreach(['each_occurrence'=>'Each Occurrence','damage_to_rented_premises'=>'Damage to Rented Premises','medical_expense'=>'Medical Expense (Any One Person)','personal_advertising_injury'=>'Personal & Advertising Injury','general_aggregate'=>'General Aggregate','products_completed_operations_aggregate'=>'Products - Completed Operations Aggregate'] as $limitField=>$limitLabel):?>
+                <label><?=e($limitLabel)?> ($)
+                  <input type="text" inputmode="decimal" data-amount-format name="coverage_amounts[<?=e($limitField)?>]" value="<?=e((string)($form['coverage_amounts'][$limitField]??''))?>" placeholder="Leave blank to keep current">
+                  <small class="endorsement-current-value">Current: <?=e((string)($cglCurrentLimits[$limitField]??'Not set'))?></small>
+                </label>
+              <?php endforeach;?>
+            </div>
+
+            <div class="endorsement-coverage-subform" data-coverage-amount-form="automobile_liability" hidden>
+              <h4>Automobile Liability Limit</h4>
+              <label>Combined Single Limit (Each Accident) ($)
+                <input type="text" inputmode="decimal" data-amount-format name="coverage_amounts[combined_single_limit]" value="<?=e((string)($form['coverage_amounts']['combined_single_limit']??''))?>" placeholder="Leave blank to keep current">
+                <small class="endorsement-current-value">Current: <?=e((string)($selectedPolicyCoverageData['combined_single_limit']??'Not set'))?></small>
+              </label>
+            </div>
+
+            <div class="endorsement-coverage-subform" data-coverage-amount-form="physical_damage" hidden>
+              <h4>Physical Damage Limit</h4>
+              <label>Amount / Limit ($)
+                <input type="text" inputmode="decimal" data-amount-format name="coverage_amounts[amount]" value="<?=e((string)($form['coverage_amounts']['amount']??''))?>" placeholder="Leave blank to keep current">
+                <small class="endorsement-current-value">Current: <?=e((string)($selectedPolicyCoverageData['physical_damage']['amount']??'Not set'))?></small>
+              </label>
+            </div>
+
+            <div class="endorsement-coverage-subform" data-coverage-amount-form="motor_truck_cargo" hidden>
+              <h4>Motor Truck Cargo Limit</h4>
+              <label>Amount / Limit ($)
+                <input type="text" inputmode="decimal" data-amount-format name="coverage_amounts[amount]" value="<?=e((string)($form['coverage_amounts']['amount']??''))?>" placeholder="Leave blank to keep current">
+                <small class="endorsement-current-value">Current: <?=e((string)($selectedPolicyCoverageData['motor_truck_cargo']['amount']??'Not set'))?></small>
+              </label>
+            </div>
+
+            <div class="endorsement-coverage-subform" data-coverage-amount-form="umbrella_liability" hidden>
+              <h4>Umbrella Liability Deductible / Retention</h4>
+              <label>Deductible / Retention Amount ($)
+                <input type="text" inputmode="decimal" data-amount-format name="coverage_amounts[deductible_retention_amount]" value="<?=e((string)($form['coverage_amounts']['deductible_retention_amount']??''))?>" placeholder="Leave blank to keep current">
+                <small class="endorsement-current-value">Current: <?=e((string)($selectedPolicyCoverageData['deductible_retention_amount']??'Not set'))?></small>
+              </label>
+            </div>
+
+            <div class="endorsement-coverage-subform" data-coverage-amount-form="excess_liability" hidden>
+              <h4>Excess Liability Deductible / Retention</h4>
+              <label>Deductible / Retention Amount ($)
+                <input type="text" inputmode="decimal" data-amount-format name="coverage_amounts[deductible_retention_amount]" value="<?=e((string)($form['coverage_amounts']['deductible_retention_amount']??''))?>" placeholder="Leave blank to keep current">
+                <small class="endorsement-current-value">Current: <?=e((string)($selectedPolicyCoverageData['deductible_retention_amount']??'Not set'))?></small>
+              </label>
+            </div>
+            <p class="endorsement-help">Update any number of amounts in one endorsement. Leave the fields you do not want to change blank.</p>
           </div>
         </section>
 
@@ -749,17 +1004,24 @@ $selectedPolicyId = (int)($selectedPolicy['id'] ?? 0);
 
   function updateCoverageAmountFields() {
     const coverage = document.getElementById('endorsement-coverage-type');
-    const field = document.getElementById('endorsement-coverage-amount-field');
-    if (!coverage || !field) return;
-    const available = Array.from(field.options).filter(function (option) { return option.dataset.coverage === coverage.value; });
-    Array.from(field.options).forEach(function (option) {
-      const shown = available.indexOf(option) !== -1;
-      option.hidden = !shown;
-      option.disabled = !shown;
+    const parent = form.querySelector('.endorsement-fields[data-category="policy"][data-action="coverage_amount_update"]');
+    if (!coverage || !parent) return;
+    parent.querySelectorAll('[data-coverage-amount-form]').forEach(function (section) {
+      const active = !parent.hidden && section.dataset.coverageAmountForm === coverage.value;
+      section.hidden = !active;
+      section.querySelectorAll('input,select,textarea').forEach(function (control) { control.disabled = !active; });
     });
-    if (!available.some(function (option) { return option.value === field.value && !option.disabled; })) {
-      field.value = available.length ? available[0].value : '';
-    }
+  }
+
+  function updateCoverageAddFields() {
+    const coverage = document.getElementById('endorsement-coverage-add-type');
+    const parent = form.querySelector('.endorsement-fields[data-category="policy"][data-action="coverage_add"]');
+    if (!coverage || !parent) return;
+    parent.querySelectorAll('[data-coverage-add-form]').forEach(function (section) {
+      const active = !parent.hidden && section.dataset.coverageAddForm === coverage.value;
+      section.hidden = !active;
+      section.querySelectorAll('input,select,textarea').forEach(function (control) { control.disabled = !active; });
+    });
   }
 
   function render() {
@@ -797,6 +1059,7 @@ $selectedPolicyId = (int)($selectedPolicy['id'] ?? 0);
     document.getElementById('endorsement-review-category').textContent = labels[cat] || '—';
     document.getElementById('endorsement-review-action').textContent = actionLabels[action.value] || 'Choose an action';
     updateCoverageAmountFields();
+    updateCoverageAddFields();
   }
 
   categories.forEach(function (item) {
@@ -821,6 +1084,8 @@ $selectedPolicyId = (int)($selectedPolicy['id'] ?? 0);
   }
   const coverage = document.getElementById('endorsement-coverage-type');
   if (coverage) coverage.addEventListener('change', updateCoverageAmountFields);
+  const addCoverage = document.getElementById('endorsement-coverage-add-type');
+  if (addCoverage) addCoverage.addEventListener('change', updateCoverageAddFields);
   const oldAction = <?=json_encode($selectedAction,JSON_UNESCAPED_SLASHES)?>;
   if (oldAction) action.value = oldAction;
   render();
