@@ -188,6 +188,9 @@ final class CertificatePdf
                 self::draw($pdf, $letter, 7.0, $rowY, 2.8, 3.2, 5.7, 1);
             }
 
+            // Mark the main Commercial General Liability checkbox next to its ACORD label.
+            self::markCheckbox($pdf, in_array('commercial_general_liability', $insuranceTypes, true), 15.2, 109.2);
+
             // Commercial General Liability has its own policy number, dates and six limit values.
             if (in_array('commercial_general_liability', $insuranceTypes, true)) {
                 self::draw($pdf, trim((string)($cglData['policy_number'] ?? '')), 76.5, 109.2, 39.0, 4.0, 6.2, 1);
