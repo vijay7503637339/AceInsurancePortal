@@ -797,11 +797,6 @@ $flash = getFlash();
                 </div>
             <?php endif; ?>
 
-            <section class="policy-hero panel">
-                <div><span class="eyebrow">POLICY NUMBER</span><h2><?= customerText($selectedPolicy['policy_number']) ?></h2><p><?= customerText($selectedPolicy['business_line'] ?: 'Insurance Policy') ?></p></div>
-                <div class="premium-highlight"><span>Total Premium</span><strong><?= customerMoney($premiumTotal) ?></strong><span class="status-pill <?= ($selectedPolicy['status'] ?? '') === 'active' ? 'is-active' : '' ?>"><?= customerText(ucfirst((string)$selectedPolicy['status'])) ?></span></div>
-            </section>
-
             <section class="panel customer-coverages-panel">
                 <div class="section-heading customer-coverages-heading">
                     <div><h2>Insurance Coverages</h2><p class="muted small">Your insurance plans, shown separately with policy dates and key limits.</p></div>
@@ -866,14 +861,6 @@ $flash = getFlash();
                         <div><dt>Broker</dt><dd><?= customerText($selectedPolicy['broker_name'] ?: 'Not provided') ?></dd></div>
                         <div><dt>Finance Company</dt><dd><?= customerText($selectedPolicy['finance_company'] ?: 'Not provided') ?></dd></div>
                         <div><dt>Business Line</dt><dd><?= customerText($selectedPolicy['business_line'] ?: 'Not provided') ?></dd></div>
-                    </dl>
-                </section>
-                <section class="info-card"><h2>Policy Period</h2>
-                    <dl class="detail-list">
-                        <div><dt>Effective Date</dt><dd><?= customerDate($selectedPolicy['effective_date']) ?></dd></div>
-                        <div><dt>Expiration Date</dt><dd><?= customerDate($selectedPolicy['expiration_date']) ?></dd></div>
-                        <div><dt>Policy Number</dt><dd><?= customerText($selectedPolicy['policy_number']) ?></dd></div>
-                        <div><dt>Certificate Number</dt><dd><?= customerText($selectedPolicy['certificate_number'] ?: '—') ?></dd></div>
                     </dl>
                 </section>
                 <section class="info-card premium-card"><h2>Premium</h2>
