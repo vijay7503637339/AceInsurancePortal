@@ -782,11 +782,12 @@ $selectedPolicyId = (int)($selectedPolicy['id'] ?? 0);
             <label>Coverage to Add
               <select name="coverage_type" id="endorsement-coverage-add-type" data-required>
                 <option value="">Select coverage...</option>
-                <?php foreach($addableCoverageTypes as $key=>$label):if(in_array($key,$selectedCoverageKeys,true))continue;?>
-                  <option value="<?=e($key)?>" <?=((string)($form['coverage_type']??'')===$key)?'selected':''?>><?=e($label)?></option>
+                <?php foreach($addableCoverageTypes as $key=>$label):$alreadyIncluded=in_array($key,$selectedCoverageKeys,true);?>
+                  <option value="<?=e($key)?>" <?=$alreadyIncluded?'disabled':''?> <?=((string)($form['coverage_type']??'')===$key)?'selected':''?>><?=e($label)?><?=$alreadyIncluded?' — Already included':''?></option>
                 <?php endforeach;?>
               </select>
             </label>
+            <p class="endorsement-help">All four supported coverages are listed here. A coverage already included in this policy is shown as “Already included” and cannot be added a second time.</p>
 
             <div class="endorsement-coverage-subform" data-coverage-add-form="commercial_general_liability" hidden>
               <h4>Commercial General Liability Details</h4>
