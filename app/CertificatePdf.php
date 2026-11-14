@@ -36,7 +36,7 @@ final class CertificatePdf
         return $template;
     }
 
-    public static function generate(array $policy, array $insured, array $vehicles, array $holder, array $mailConfig, string $outputPath): void
+    public static function generate(array $policy, array $insured, array $vehicles, array $holder, array $mailConfig, string $outputPath, array $drivers = []): void
     {
         $autoload = APP_ROOT . '/vendor/autoload.php';
         if (!is_file($autoload)) throw new RuntimeException('PDF libraries are not installed. Run composer install in the project folder.');
@@ -70,16 +70,23 @@ final class CertificatePdf
             if (trim((string)($v['unit_number'] ?? '')) !== '') $line .= ' (Unit ' . trim((string)$v['unit_number']) . ')';
             if ($details !== '') $line .= ' - ' . $details;
 
-            // Append only selected insurer company names; never expose insurer letters or NAIC values.
-            $carrierNames = is_array($v['carrier_names'] ?? null) ? $v['carrier_names'] : [];
-            $carrierNames = array_values(array_unique(array_filter(
-                array_map(static fn($name): string => is_scalar($name) ? trim((string)$name) : '', $carrierNames),
-                static fn(string $name): bool => $name !== ''
-            )));
-            if ($carrierNames) $line .= ' (' . implode(', ', $carrierNames) . ')';
+            $coverageNames = CoverageSelection::labels($v['coverage_selections'] ?? []);
+            if ($coverageNames) $line .= ' (' . implode(', ', $coverageNames) . ')';
 
             $vehicleLines[] = $line;
         }
+
+        $driverLines = [];
+        foreach ($drivers as $driver) {
+            $driverName = trim((string)($driver['full_name'] ?? '')) ?: 'Driver';
+            $coverageNames = CoverageSelection::labels($driver['coverage_selections'] ?? []);
+            if (!$coverageNames) continue;
+            $driverLines[] = $driverName . ' (' . implode(', ', $coverageNames) . ')';
+        }
+
+        $operationsLines = [];
+        if ($vehicleLines) $operationsLines[] = 'Scheduled autos: ' . implode('; ', $vehicleLines);
+        if ($driverLines) $operationsLines[] = 'Drivers: ' . implode('; ', $driverLines);
         $coverage = [];
         if (!empty($policy['coverage_data'])) {
             $decoded = json_decode((string)$policy['coverage_data'], true);
@@ -135,7 +142,7 @@ final class CertificatePdf
             'effective_date' => self::dateValue($policy['effective_date'] ?? null),
             'expiration_date' => self::dateValue($policy['expiration_date'] ?? null),
             'combined_single_limit' => self::formatLimit(array_key_exists('combined_single_limit', $coverage) ? trim((string)$coverage['combined_single_limit']) : self::findCoverageValue($coverage, ['combined_single', 'combined_single_limit_each_accident'])),
-            'operations' => $vehicleLines ? "Scheduled autos:\n" . implode("\n", $vehicleLines) : '',
+            'operations' => implode("\n", $operationsLines),
             'certificate_holder' => $holderText,
             'authorized_rep' => $signatureName,
         ];
@@ -259,7 +266,7 @@ final class CertificatePdf
             }
             self::draw($pdf, trim((string)($coverage['workers_compensation_other_text'] ?? '')), 184.0, 177.4, 24.0, 4.0, 5.0, 1);
 
-            self::draw($pdf,$data['operations'],7.8,203.3,196.0,17.0,7.0,4);
+            self::draw($pdf,$data['operations'],7.8,203.3,196.0,17.0,5.8,5);
             self::draw($pdf,$data['certificate_holder'],7.8,233.5,98.0,22.0,7.0,5);
             if ($signaturePath !== '') {
                 // Only a validated filename from the private main-admin signature folder is used.
