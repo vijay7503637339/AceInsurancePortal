@@ -622,8 +622,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['certificate_action'])
             $selectedVehicles,
             $certificateForm,
             $certificateConfig,
-            $outputPath,
-            $drivers
+            $outputPath
         );
         $_SESSION['certificate_files'][$fileId] = [
             'insured_id' => $insuredId,
@@ -717,8 +716,7 @@ if ($tab === 'certificate' && $_SERVER['REQUEST_METHOD'] === 'GET' && $selectedP
             $selectedVehicles,
             $certificateForm,
             $certificateConfig,
-            $outputPath,
-            $drivers
+            $outputPath
         );
         $_SESSION['certificate_files'][$fileId] = [
             'insured_id' => $insuredId,

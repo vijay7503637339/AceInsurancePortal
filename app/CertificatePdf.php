@@ -36,7 +36,7 @@ final class CertificatePdf
         return $template;
     }
 
-    public static function generate(array $policy, array $insured, array $vehicles, array $holder, array $mailConfig, string $outputPath, array $drivers = []): void
+    public static function generate(array $policy, array $insured, array $vehicles, array $holder, array $mailConfig, string $outputPath): void
     {
         $autoload = APP_ROOT . '/vendor/autoload.php';
         if (!is_file($autoload)) throw new RuntimeException('PDF libraries are not installed. Run composer install in the project folder.');
@@ -76,17 +76,9 @@ final class CertificatePdf
             $vehicleLines[] = $line;
         }
 
-        $driverLines = [];
-        foreach ($drivers as $driver) {
-            $driverName = trim((string)($driver['full_name'] ?? '')) ?: 'Driver';
-            $coverageNames = CoverageSelection::labels($driver['coverage_selections'] ?? []);
-            if (!$coverageNames) continue;
-            $driverLines[] = $driverName . ' (' . implode(', ', $coverageNames) . ')';
-        }
-
+        // Description of Operations includes scheduled vehicles only, not driver records.
         $operationsLines = [];
         if ($vehicleLines) $operationsLines[] = 'Scheduled autos: ' . implode('; ', $vehicleLines);
-        if ($driverLines) $operationsLines[] = 'Drivers: ' . implode('; ', $driverLines);
         $coverage = [];
         if (!empty($policy['coverage_data'])) {
             $decoded = json_decode((string)$policy['coverage_data'], true);
