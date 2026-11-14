@@ -530,7 +530,17 @@ $certificateForm = [
 ];
 $currentPolicyId = $selectedPolicy ? (int)$selectedPolicy['id'] : 0;
 if ($currentPolicyId > 0 && isset($_SESSION['certificate_form'][$currentPolicyId]) && is_array($_SESSION['certificate_form'][$currentPolicyId])) {
-    $certificateForm = array_merge($certificateForm, $_SESSION['certificate_form'][$currentPolicyId]);
+    $savedCertificateForm = $_SESSION['certificate_form'][$currentPolicyId];
+    $certificateForm = array_merge($certificateForm, $savedCertificateForm);
+
+    // Older sessions may contain the broker name that was automatically copied from the policy.
+    // Clear that legacy value once, but preserve broker names entered by customers after this fix.
+    $policyBrokerName = trim((string)($selectedPolicy['broker_name'] ?? ''));
+    $savedBrokerName = trim((string)($savedCertificateForm['broker_name'] ?? ''));
+    $brokerNameWasEntered = !empty($_SESSION['certificate_form_broker_name_explicit'][$currentPolicyId]);
+    if (!$brokerNameWasEntered && $policyBrokerName !== '' && $savedBrokerName === $policyBrokerName) {
+        $certificateForm['broker_name'] = '';
+    }
 }
 // Remove deprecated holder inputs saved by older versions; broker details now fill the PDF holder area.
 unset($certificateForm['certificate_holder_name'], $certificateForm['certificate_holder_address']);
@@ -575,6 +585,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['certificate_action'])
         $certificateForm['broker_emails'] = trim(substr((string)($_POST['broker_emails'] ?? ''), 0, 1200));
         $certificateForm['cc_emails'] = trim(substr((string)($_POST['cc_emails'] ?? ''), 0, 1200));
         $certificateForm['broker_name'] = trim(substr((string)($_POST['broker_name'] ?? ''), 0, 190));
+        $_SESSION['certificate_form_broker_name_explicit'][$currentPolicyId] = true;
         $certificateForm['broker_address'] = trim(substr((string)($_POST['broker_address'] ?? ''), 0, 700));
         $rawVehicleIds = $_POST['vehicle_ids'] ?? [];
         if (!is_array($rawVehicleIds)) $rawVehicleIds = [];
