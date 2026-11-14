@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 require dirname(__DIR__,2).'/app/bootstrap.php';
-use AcePortal\Auth;use AcePortal\Crud;
+use AcePortal\Auth;use AcePortal\Crud;use AcePortal\CoverageSelection;
 $u=Auth::requireRoles(['admin','staff']);
 $key=(string)($_GET['entity']??$_POST['entity']??'insureds');
 $entity=Crud::entity($key);
@@ -109,52 +109,9 @@ $allRows=Crud::rows($key);
 $customers=db()->query('SELECT id,legal_name,dot_number FROM insureds ORDER BY legal_name')->fetchAll();
 $customerMap=[];foreach($customers as $c)$customerMap[(int)$c['id']]=$c;
 
-$carrierOptions=[];
-$selectedCarrierKeys=[];
-$carrierInsuredId=0;
+$selectedCoverageKeys=[];
 if(in_array($key,['vehicles','drivers'],true)&&in_array($action,['add','edit'],true)) {
- $carrierInsuredId=(int)($editing['insured_id']??0);
- $rawCarrierSelections=$editing['carrier_selections']??[];
- if(is_string($rawCarrierSelections)) {
-  $decodedCarrierSelections=json_decode($rawCarrierSelections,true);
-  $rawCarrierSelections=is_array($decodedCarrierSelections)?$decodedCarrierSelections:[];
- }
- if(is_array($rawCarrierSelections)) {
-  foreach($rawCarrierSelections as $selectedKey) {
-   if(is_string($selectedKey)&&preg_match('/^[1-9][0-9]*:[A-F]$/',$selectedKey)) $selectedCarrierKeys[]=$selectedKey;
-  }
- }
- if($carrierInsuredId>0) {
-  $carrierQuery=db()->prepare(
-   'SELECT id, policy_number,
-           insurer_a_name, insurer_a_naic,
-           insurer_b_name, insurer_b_naic,
-           insurer_c_name, insurer_c_naic,
-           insurer_d_name, insurer_d_naic,
-           insurer_e_name, insurer_e_naic,
-           insurer_f_name, insurer_f_naic
-    FROM policies WHERE insured_id=:insured_id ORDER BY id DESC'
-  );
-  $carrierQuery->execute(['insured_id'=>$carrierInsuredId]);
-  foreach($carrierQuery->fetchAll() as $policy) {
-   foreach(range('A','F') as $letter) {
-    $suffix=strtolower($letter);
-    $company=trim((string)($policy['insurer_'.$suffix.'_name']??''));
-    if($company==='') continue;
-    $naic=trim((string)($policy['insurer_'.$suffix.'_naic']??''));
-    $policyNumber=trim((string)($policy['policy_number']??''));
-    $label='Insurer '.$letter.' · '.$company;
-    if($policyNumber!=='') $label.=' · Policy #'.$policyNumber;
-    if($naic!=='') $label.=' · NAIC '.$naic;
-    $carrierOptions[]=[
-     'key'=>(int)$policy['id'].':'.$letter,
-     'label'=>$label
-    ];
-   }
-  }
-  $availableCarrierKeys=array_column($carrierOptions,'key');
-  $selectedCarrierKeys=array_values(array_intersect($selectedCarrierKeys,$availableCarrierKeys));
- }
+ $selectedCoverageKeys=CoverageSelection::normalize($editing['coverage_selections']??[]);
 }
 
 $search=trim((string)($_GET['q']??''));$statusFilter=trim((string)($_GET['status']??''));
@@ -227,90 +184,31 @@ $formUrl=$listUrl.'&action='.$action.($id!==null?'&id='.(int)$id:'');
 </div>
 <?php else: ?><label><?=e($m[0])?><?=$m[2]?' *':''?><?php if($m[1]==='insured_select'):?><select name="<?=e($f)?>" <?=$m[2]?'required':''?><?=in_array($key,['vehicles','drivers'],true)&&$f==='insured_id'?' id="insured-customer-select"':''?>><option value="">Select insured customer</option><?php foreach($customers as $c):?><option value="<?=$c['id']?>" <?=(string)$v===(string)$c['id']?'selected':''?>><?=e($c['legal_name'].' (DOT '.$c['dot_number'].')')?></option><?php endforeach;?></select><?php elseif(str_starts_with($m[1],'select:')):?><select name="<?=e($f)?>" <?=$m[2]?'required':''?>><option value="">Select</option><?php foreach(explode(',',substr($m[1],7)) as $o):$optionLabel=($key==='drivers'&&$f==='is_excluded')?((string)$o==='1'?'Yes':'No'):ucfirst($o);?><option value="<?=e($o)?>" <?=(string)$v===$o?'selected':''?>><?=e($optionLabel)?></option><?php endforeach;?></select><?php else:$isAmountField=$m[1]==='decimal';?><input type="<?=$isAmountField?'text':e($m[1])?>" name="<?=e($f)?>" value="<?=e(is_scalar($v)?(string)$v:'')?>" <?=$isAmountField?'inputmode="decimal" data-amount-format':''?> <?=$m[2]?'required':''?>><?php endif;?></label><?php endif;?><?php endforeach;?>
 <?php if(in_array($key,['vehicles','drivers'],true)): ?>
-<div class="carrier-selection-manager" id="carrier-selection-manager">
- <div class="carrier-selection-heading">
-  <div><h3>Insurance Carriers</h3><p class="muted">Select every carrier that insures this <?=e($key==='vehicles'?'vehicle':'driver')?>. Multiple selections are allowed.</p></div>
-  <span class="count-pill" id="carrier-selection-count"><?=count($selectedCarrierKeys)?> selected</span>
+<div class="coverage-selection-manager" id="coverage-selection-manager">
+ <div class="coverage-selection-heading">
+  <div><h3>Insurance Coverages</h3><p class="muted">Select all coverages that apply to this <?=e($key==='vehicles'?'vehicle':'driver')?>. You can choose more than one.</p></div>
+  <span class="count-pill" id="coverage-selection-count"><?=count($selectedCoverageKeys)?> selected</span>
  </div>
- <input type="hidden" name="carrier_selections_present" value="1">
- <div class="carrier-selection-options" id="carrier-selection-options">
-  <?php if($carrierInsuredId<1): ?>
-   <p class="carrier-selection-message">Select an insured customer to view their policy carriers.</p>
-  <?php elseif(!$carrierOptions): ?>
-   <p class="carrier-selection-message">No insurance carriers have been added for this customer.</p>
-  <?php else: ?>
-   <?php foreach($carrierOptions as $carrierOption): ?>
-    <label class="carrier-selection-option">
-     <input type="checkbox" name="carrier_selections[]" value="<?=e($carrierOption['key'])?>" <?=in_array($carrierOption['key'],$selectedCarrierKeys,true)?'checked':''?>>
-     <span><?=e($carrierOption['label'])?></span>
-    </label>
-   <?php endforeach; ?>
-  <?php endif; ?>
+ <input type="hidden" name="coverage_selections_present" value="1">
+ <div class="coverage-selection-options" id="coverage-selection-options">
+  <?php foreach(CoverageSelection::LABELS as $coverageKey=>$coverageLabel): ?>
+   <label class="coverage-selection-option">
+    <input type="checkbox" name="coverage_selections[]" value="<?=e($coverageKey)?>" <?=in_array($coverageKey,$selectedCoverageKeys,true)?'checked':''?>>
+    <span><?=e($coverageLabel)?></span>
+   </label>
+  <?php endforeach; ?>
  </div>
 </div>
 <script>
 (function(){
- const customerSelect=document.getElementById('insured-customer-select');
- const optionsContainer=document.getElementById('carrier-selection-options');
- const count=document.getElementById('carrier-selection-count');
- if(!customerSelect||!optionsContainer||!count)return;
-
- const endpoint=<?=json_encode(appUrl('/agency/customer-carriers.php'),JSON_UNESCAPED_SLASHES)?>;
- function showMessage(message){
-  optionsContainer.replaceChildren();
-  const paragraph=document.createElement('p');
-  paragraph.className='carrier-selection-message';
-  paragraph.textContent=message;
-  optionsContainer.appendChild(paragraph);
-  count.textContent='0 selected';
- }
+ const manager=document.getElementById('coverage-selection-manager');
+ const count=document.getElementById('coverage-selection-count');
+ if(!manager||!count)return;
  function refreshCount(){
-  const selected=optionsContainer.querySelectorAll('input[name="carrier_selections[]"]:checked').length;
+  const selected=manager.querySelectorAll('input[name="coverage_selections[]"]:checked').length;
   count.textContent=selected+' selected';
  }
- function renderCarriers(carriers){
-  optionsContainer.replaceChildren();
-  if(!Array.isArray(carriers)||carriers.length===0){
-   showMessage('No insurance carriers have been added for this customer.');
-   return;
-  }
-  carriers.forEach(carrier=>{
-   if(!carrier||typeof carrier.key!=='string'||typeof carrier.label!=='string')return;
-   const label=document.createElement('label');
-   label.className='carrier-selection-option';
-   const checkbox=document.createElement('input');
-   checkbox.type='checkbox';
-   checkbox.name='carrier_selections[]';
-   checkbox.value=carrier.key;
-   checkbox.addEventListener('change',refreshCount);
-   const text=document.createElement('span');
-   text.textContent=carrier.label;
-   label.append(checkbox,text);
-   optionsContainer.appendChild(label);
-  });
-  refreshCount();
- }
- async function loadCarriers(insuredId){
-  if(!insuredId){
-   showMessage('Select an insured customer to view their policy carriers.');
-   return;
-  }
-  showMessage('Loading policy carriers…');
-  count.textContent='Loading…';
-  try{
-   const url=endpoint+(endpoint.includes('?')?'&':'?')+'insured_id='+encodeURIComponent(insuredId);
-   const response=await fetch(url,{method:'GET',credentials:'same-origin',headers:{'Accept':'application/json'},cache:'no-store'});
-   if(!response.ok)throw new Error('Carrier request failed');
-   const result=await response.json();
-   if(!result||!Array.isArray(result.carriers))throw new Error('Invalid carrier response');
-   renderCarriers(result.carriers);
-  }catch(error){
-   showMessage('Unable to load insurance carriers. Please try selecting the customer again.');
-   count.textContent='Unavailable';
-  }
- }
- customerSelect.addEventListener('change',()=>loadCarriers(customerSelect.value));
- optionsContainer.querySelectorAll('input[name="carrier_selections[]"]').forEach(input=>input.addEventListener('change',refreshCount));
+ manager.querySelectorAll('input[name="coverage_selections[]"]').forEach(input=>input.addEventListener('change',refreshCount));
  refreshCount();
 })();
 </script>
