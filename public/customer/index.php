@@ -802,6 +802,61 @@ $flash = getFlash();
                 <div class="premium-highlight"><span>Total Premium</span><strong><?= customerMoney($premiumTotal) ?></strong><span class="status-pill <?= ($selectedPolicy['status'] ?? '') === 'active' ? 'is-active' : '' ?>"><?= customerText(ucfirst((string)$selectedPolicy['status'])) ?></span></div>
             </section>
 
+            <section class="panel customer-coverages-panel">
+                <div class="section-heading customer-coverages-heading">
+                    <div><h2>Insurance Coverages</h2><p class="muted small">Your insurance plans, shown separately with policy dates and key limits.</p></div>
+                    <?php if ($coverages): ?><span class="count-pill"><?= count($coverages) ?> <?= count($coverages) === 1 ? 'plan' : 'plans' ?></span><?php endif; ?>
+                </div>
+                <?php if ($coverages): ?>
+                    <div class="customer-coverage-grid">
+                        <?php foreach ($coverages as $coverage): ?>
+                            <article class="customer-coverage-card">
+                                <div class="customer-coverage-card-head">
+                                    <div class="customer-coverage-title-wrap">
+                                        <span class="customer-coverage-symbol" aria-hidden="true"><?= customerText($coverage['symbol']) ?></span>
+                                        <div class="customer-coverage-title">
+                                            <h3><?= customerText($coverage['name']) ?></h3>
+                                            <span><?= $coverage['policy_number'] !== '' ? 'Policy #'.customerText($coverage['policy_number']) : 'Policy number not added' ?></span>
+                                            <?php if ($coverage['options']): ?>
+                                                <div class="customer-coverage-options customer-coverage-options-top">
+                                                    <div><?php foreach ($coverage['options'] as $option): ?><span><?= customerText($option) ?></span><?php endforeach; ?></div>
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                    <span class="customer-coverage-status <?= customerText($coverage['status_class']) ?>"><?= customerText($coverage['status']) ?></span>
+                                </div>
+                                <div class="customer-coverage-period">
+                                    <div><span>POLICY STARTS</span><strong><?= $coverage['start_date'] !== '' ? customerDate($coverage['start_date']) : 'Not provided' ?></strong></div>
+                                    <span class="customer-coverage-period-arrow" aria-hidden="true">→</span>
+                                    <div><span>POLICY ENDS</span><strong><?= $coverage['end_date'] !== '' ? customerDate($coverage['end_date']) : 'Not provided' ?></strong></div>
+                                </div>
+                                <?php if ($coverage['carrier'] !== ''): ?><div class="customer-coverage-carrier"><span>Insurance carrier</span><strong><?= customerText($coverage['carrier']) ?></strong></div><?php endif; ?>
+                                <?php if ($coverage['highlights']): ?>
+                                    <div class="customer-coverage-highlights">
+                                        <?php foreach ($coverage['highlights'] as [$highlightLabel, $highlightValue]): ?>
+                                            <div><span><?= customerText($highlightLabel) ?></span><strong><?= customerText($highlightValue) ?></strong></div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php endif; ?>
+                                <?php if ($coverage['details'] || $coverage['description'] !== ''): ?>
+                                    <details class="customer-coverage-more">
+                                        <summary>See all limits and details</summary>
+                                        <?php if ($coverage['details']): ?><div class="customer-coverage-detail-list"><?php foreach ($coverage['details'] as [$detailLabel, $detailValue]): ?><div><span><?= customerText($detailLabel) ?></span><strong><?= customerText($detailValue) ?></strong></div><?php endforeach; ?></div><?php endif; ?>
+                                        <?php if ($coverage['description'] !== ''): ?><p class="customer-coverage-description"><?= customerText($coverage['description']) ?></p><?php endif; ?>
+                                    </details>
+                                <?php elseif ($coverage['status_class'] === 'is-incomplete'): ?>
+                                    <p class="customer-coverage-note">Your agency has not added a separate policy period for this coverage yet. Please contact your agency for confirmation.</p>
+                                <?php endif; ?>
+                            </article>
+                        <?php endforeach; ?>
+                    </div>
+                <?php else: ?>
+                    <div class="customer-coverage-empty"><span aria-hidden="true">▤</span><h3>No insurance coverages added</h3><p>Your agency has not selected insurance types for this policy yet.</p></div>
+                <?php endif; ?>
+            </section>
+
+
             <div class="policy-info-grid">
                 <section class="info-card"><h2>Insurance Details</h2>
                     <dl class="detail-list">
@@ -857,59 +912,6 @@ $flash = getFlash();
                 </section>
             </div>
 
-            <section class="panel customer-coverages-panel">
-                <div class="section-heading customer-coverages-heading">
-                    <div><h2>Insurance Coverages</h2><p class="muted small">Your insurance plans, shown separately with policy dates and key limits.</p></div>
-                    <?php if ($coverages): ?><span class="count-pill"><?= count($coverages) ?> <?= count($coverages) === 1 ? 'plan' : 'plans' ?></span><?php endif; ?>
-                </div>
-                <?php if ($coverages): ?>
-                    <div class="customer-coverage-grid">
-                        <?php foreach ($coverages as $coverage): ?>
-                            <article class="customer-coverage-card">
-                                <div class="customer-coverage-card-head">
-                                    <div class="customer-coverage-title-wrap">
-                                        <span class="customer-coverage-symbol" aria-hidden="true"><?= customerText($coverage['symbol']) ?></span>
-                                        <div class="customer-coverage-title">
-                                            <h3><?= customerText($coverage['name']) ?></h3>
-                                            <span><?= $coverage['policy_number'] !== '' ? 'Policy #'.customerText($coverage['policy_number']) : 'Policy number not added' ?></span>
-                                            <?php if ($coverage['options']): ?>
-                                                <div class="customer-coverage-options customer-coverage-options-top">
-                                                    <div><?php foreach ($coverage['options'] as $option): ?><span><?= customerText($option) ?></span><?php endforeach; ?></div>
-                                                </div>
-                                            <?php endif; ?>
-                                        </div>
-                                    </div>
-                                    <span class="customer-coverage-status <?= customerText($coverage['status_class']) ?>"><?= customerText($coverage['status']) ?></span>
-                                </div>
-                                <div class="customer-coverage-period">
-                                    <div><span>POLICY STARTS</span><strong><?= $coverage['start_date'] !== '' ? customerDate($coverage['start_date']) : 'Not provided' ?></strong></div>
-                                    <span class="customer-coverage-period-arrow" aria-hidden="true">→</span>
-                                    <div><span>POLICY ENDS</span><strong><?= $coverage['end_date'] !== '' ? customerDate($coverage['end_date']) : 'Not provided' ?></strong></div>
-                                </div>
-                                <?php if ($coverage['carrier'] !== ''): ?><div class="customer-coverage-carrier"><span>Insurance carrier</span><strong><?= customerText($coverage['carrier']) ?></strong></div><?php endif; ?>
-                                <?php if ($coverage['highlights']): ?>
-                                    <div class="customer-coverage-highlights">
-                                        <?php foreach ($coverage['highlights'] as [$highlightLabel, $highlightValue]): ?>
-                                            <div><span><?= customerText($highlightLabel) ?></span><strong><?= customerText($highlightValue) ?></strong></div>
-                                        <?php endforeach; ?>
-                                    </div>
-                                <?php endif; ?>
-                                <?php if ($coverage['details'] || $coverage['description'] !== ''): ?>
-                                    <details class="customer-coverage-more">
-                                        <summary>See all limits and details</summary>
-                                        <?php if ($coverage['details']): ?><div class="customer-coverage-detail-list"><?php foreach ($coverage['details'] as [$detailLabel, $detailValue]): ?><div><span><?= customerText($detailLabel) ?></span><strong><?= customerText($detailValue) ?></strong></div><?php endforeach; ?></div><?php endif; ?>
-                                        <?php if ($coverage['description'] !== ''): ?><p class="customer-coverage-description"><?= customerText($coverage['description']) ?></p><?php endif; ?>
-                                    </details>
-                                <?php elseif ($coverage['status_class'] === 'is-incomplete'): ?>
-                                    <p class="customer-coverage-note">Your agency has not added a separate policy period for this coverage yet. Please contact your agency for confirmation.</p>
-                                <?php endif; ?>
-                            </article>
-                        <?php endforeach; ?>
-                    </div>
-                <?php else: ?>
-                    <div class="customer-coverage-empty"><span aria-hidden="true">▤</span><h3>No insurance coverages added</h3><p>Your agency has not selected insurance types for this policy yet.</p></div>
-                <?php endif; ?>
-            </section>
         <?php endif; ?>
 
     <?php elseif ($tab === 'certificate'): ?>
